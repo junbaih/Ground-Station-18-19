@@ -1,6 +1,6 @@
 # UCI UAV Forge 2018-2019 Ground Station
 
-The ground station sub-system of is using *QGroundControl* (QGC) Ground Control Station software under GPLv3 license.
+The ground station sub-system is using *QGroundControl* (QGC) Ground Control Station software under GPLv3 license.
 
 More information regarding QGC can be accessed through links below:
 
