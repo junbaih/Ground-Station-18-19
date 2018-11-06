@@ -2298,6 +2298,7 @@ Set to 0 to disable heading hold</short_desc>
     </parameter>
     <parameter default="0" name="FW_LND_USETER" type="INT32">
       <short_desc>Use terrain estimate during landing</short_desc>
+      <long_desc>This is turned off by default and a waypoint or return altitude is normally used (or sea level for an arbitrary land position).</long_desc>
       <boolean />
     </parameter>
     <parameter default="45.0" name="FW_P_LIM_MAX" type="FLOAT">
@@ -8294,7 +8295,7 @@ is less than 50% of this value</short_desc>
       <unit>C</unit>
       <decimal>3</decimal>
     </parameter>
-    <parameter default="0.5" name="SENS_IMU_TEMP_FF" type="FLOAT">
+    <parameter default="0.0" name="SENS_IMU_TEMP_FF" type="FLOAT">
       <short_desc>IMU heater controller feedforward value</short_desc>
       <min>0</min>
       <max>1.0</max>
