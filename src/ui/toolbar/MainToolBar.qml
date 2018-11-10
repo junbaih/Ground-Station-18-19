@@ -32,6 +32,7 @@ Rectangle {
     signal showPlanView
     signal showFlyView
     signal showAnalyzeView
+	signal showConnectView
     signal armVehicle
     signal disarmVehicle
     signal vtolTransitionToFwdFlight
@@ -57,6 +58,9 @@ Rectangle {
         analyzeButton.checked = true
     }
 
+	function checkConnectButton*( {
+		connectButton.checked = true
+	}
     Component.onCompleted: {
         //-- TODO: Get this from the actual state
         flyButton.checked = true
@@ -139,6 +143,15 @@ Rectangle {
                 visible:            !ScreenTools.isMobile && QGroundControl.corePlugin.showAdvancedUI
                 onClicked:          toolBar.showAnalyzeView()
             }
+
+			QGCToolBarButton {
+				id:					connectButton
+				anchors.top:		parent.top
+				anchors.button:		parent.bottom
+				exclusiveGroup:		mainActionGroup
+			//	source:
+				onClicked:			toolBar.showConnectView()
+			}
 
             Rectangle {
                 anchors.margins:    ScreenTools.defaultFontPixelHeight / 2
