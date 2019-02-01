@@ -167,6 +167,7 @@ QGCApplication::QGCApplication(int &argc, char* argv[], bool unitTesting)
     , _currentVersionDownload   (nullptr)
     , _gpsRtkFactGroup          (nullptr)
     , _toolbox                  (nullptr)
+    , _interopClient            (nullptr)
     , _bluetoothAvailable       (false)
 {
     _app = this;
@@ -481,6 +482,16 @@ bool QGCApplication::_initForNormalAppBoot(void)
     if (getQGCMapEngine()->wasCacheReset()) {
         showMessage(tr("The Offline Map Cache database has been upgraded. "
                     "Your old map cache sets have been reset."));
+    }
+
+    //Junbai setup interop
+    try
+    {
+    _interopClient = new Interop("testuser","testpass");
+    }
+    catch(...)
+    {
+
     }
 
     settings.sync();

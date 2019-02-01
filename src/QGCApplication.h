@@ -34,6 +34,7 @@
 #include "UASMessageHandler.h"
 #include "FactSystem.h"
 #include "GPSRTKFactGroup.h"
+#include "interop.h"
 
 #ifdef QGC_RTLAB_ENABLED
 #include "OpalLink.h"
@@ -95,6 +96,9 @@ public:
 
     /// Is Internet available?
     bool isInternetAvailable();
+
+    //Junbai get interop
+    Interop* getInterop() { return _interopClient; }
 
     FactGroup* gpsRtkFactGroup(void)  { return _gpsRtkFactGroup; }
 
@@ -187,6 +191,9 @@ private:
     QGCToolbox* _toolbox;
 
     QTranslator _QGCTranslator;
+
+    //Junbai
+    Interop* _interopClient;
 
     bool _bluetoothAvailable;
 

@@ -375,6 +375,8 @@ INCLUDEPATH += \
     src/ui/px4_configuration \
     src/ui/toolbar \
     src/ui/uas \
+    src/ForgeNetwork \
+    src/ForgeUtil
 
 FORMS += \
     src/ui/MainWindow.ui \
@@ -621,7 +623,14 @@ HEADERS += \
     src/uas/UASInterface.h \
     src/uas/UASMessageHandler.h \
     src/UTM.h \
-
+    src/ForgeNetwork/interop.h \
+    src/ForgeNetwork/waypoint.h \
+    src/ForgeUtil/mission.h \
+    src/ForgeUtil/missionpath.h \
+    src/ForgeUtil/obstacles.h \
+    src/ForgeUtil/point.hpp \
+    src/ForgeUtil/qplantranslator.h \
+    src/ForgeUtil/waypt.h \
 
 AndroidBuild {
 HEADERS += \
@@ -818,6 +827,13 @@ SOURCES += \
     src/uas/UAS.cc \
     src/uas/UASMessageHandler.cc \
     src/UTM.cpp \
+    src/ForgeUtil/mission.cpp \
+    src/ForgeUtil/missionpath.cpp \
+    src/ForgeUtil/obstacles.cpp \
+    src/ForgeUtil/qplantranslator.cpp \
+    src/ForgeUtil/waypt.cpp \
+    src/ForgeNetwork/interop.cpp \
+    src/ForgeNetwork/waypoint.cpp \
 
 DebugBuild {
 SOURCES += \

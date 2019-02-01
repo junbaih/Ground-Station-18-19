@@ -1072,6 +1072,15 @@ void Vehicle::_handleGpsRawInt(mavlink_message_t& message)
     _gpsFactGroup.vdop()->setRawValue(gpsRawInt.epv == UINT16_MAX ? std::numeric_limits<double>::quiet_NaN() : gpsRawInt.epv / 100.0);
     _gpsFactGroup.courseOverGround()->setRawValue(gpsRawInt.cog == UINT16_MAX ? std::numeric_limits<double>::quiet_NaN() : gpsRawInt.cog / 100.0);
     _gpsFactGroup.lock()->setRawValue(gpsRawInt.fix_type);
+
+    //hongminy
+    qDebug() << "GPS TELE: " << _gpsFactGroup.lat()->cookedValue() << "," << _gpsFactGroup.lon()->cookedValue() << endl;
+    qDebug() << "Heading: "<< _headingFact.cookedValue() << endl;
+
+    qgcApp()->getInterop()->sendTelemetry(_gpsFactGroup.lat()->cookedValue().toFloat() , \
+                                          _gpsFactGroup.lon()->cookedValue().toFloat() , \
+                                          _altitudeAMSLFact.cookedValue().toFloat() , \
+                                          _headingFact.cookedValue().toFloat());
 }
 
 void Vehicle::_handleGlobalPositionInt(mavlink_message_t& message)
