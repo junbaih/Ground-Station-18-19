@@ -129,6 +129,10 @@ public:
     bool            writeOnly               (void) const;
     bool            volatileValue           (void) const;
 
+    // Internal hack to allow changes to fact which do not signal reboot. Currently used by font point size
+    // code in ScreenTools.qml to set initial sizing at first boot.
+    Q_INVOKABLE void _setIgnoreQGCRebootRequired(bool ignore);
+
     Q_INVOKABLE FactValueSliderListModel* valueSliderModel(void);
 
     /// Returns the values as a string with full 18 digit precision if float/double.
@@ -138,6 +142,7 @@ public:
     void setCookedValue     (const QVariant& value);
     void setEnumIndex       (int index);
     void setEnumStringValue (const QString& value);
+    int  valueIndex         (const QString& value);
 
     // The following methods allow you to defer sending of the valueChanged signals in order to implement
     // rate limited signalling for ui performance. Used by FactGroup for example.
@@ -207,6 +212,7 @@ protected:
     bool                        _sendValueChangedSignals;
     bool                        _deferredValueChangeSignal;
     FactValueSliderListModel*   _valueSliderModel;
+    bool                        _ignoreQGCRebootRequired;
 };
 
 #endif

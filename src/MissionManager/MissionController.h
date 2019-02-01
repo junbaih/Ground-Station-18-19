@@ -119,9 +119,10 @@ public:
 
     /// Add a new complex mission item to the list
     ///     @param itemName: Name of complex item to create (from complexMissionItemNames)
+    ///     @param file: kml or shp file to load from shape from
     ///     @param i: index to insert at, -1 for end
     /// @return Sequence number for new item
-    Q_INVOKABLE int insertComplexMissionItemFromKML(QString itemName, QString kmlFile, int i);
+    Q_INVOKABLE int insertComplexMissionItemFromKMLOrSHP(QString itemName, QString file, int i);
 
     Q_INVOKABLE void resumeMission(int resumeIndex);
 
@@ -174,8 +175,8 @@ public:
     VisualMissionItem*  currentPlanViewItem         (void) const;
     double              progressPct                 (void) const { return _progressPct; }
     QString             surveyComplexItemName       (void) const { return _surveyMissionItemName; }
-    QString             corridorScanComplexItemName (void) const { return _corridorScanMissionItemName; }
-    QString             structureScanComplexItemName(void) const { return _structureScanMissionItemName; }
+    QString             corridorScanComplexItemName (void) const { return patternCorridorScanName; }
+    QString             structureScanComplexItemName(void) const { return patternStructureScanName; }
 
     int missionItemCount            (void) const { return _missionItemCount; }
     int currentMissionIndex         (void) const;
@@ -192,6 +193,12 @@ public:
 
     int  batteryChangePoint         (void) const { return _missionFlightStatus.batteryChangePoint; }    ///< -1 for not supported, 0 for not needed
     int  batteriesRequired          (void) const { return _missionFlightStatus.batteriesRequired; }     ///< -1 for not supported
+
+    // These are the names shown in the UI for the pattern items. They are public so custom builds can remove the ones
+    // they don't want through the QGCCorePlugin::
+    static const QString patternFWLandingName;
+    static const QString patternStructureScanName;
+    static const QString patternCorridorScanName;
 
 signals:
     void visualItemsChanged             (void);
@@ -284,9 +291,6 @@ private:
     bool                    _inRecalcSequence;
     MissionFlightStatus_t   _missionFlightStatus;
     QString                 _surveyMissionItemName;
-    QString                 _fwLandingMissionItemName;
-    QString                 _structureScanMissionItemName;
-    QString                 _corridorScanMissionItemName;
     AppSettings*            _appSettings;
     double                  _progressPct;
     int                     _currentPlanViewIndex;

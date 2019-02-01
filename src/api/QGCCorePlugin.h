@@ -34,6 +34,12 @@ class QmlObjectListModel;
 class VideoReceiver;
 class PlanMasterController;
 
+#if !defined(__mobile__)
+class QLayout;
+class QMainWindow;
+class QGCQmlWidgetHolder;
+#endif
+
 class QGCCorePlugin : public QGCTool
 {
     Q_OBJECT
@@ -102,6 +108,11 @@ public:
     /// Allows the plugin to override the creation of the root (native) window.
     virtual QQmlApplicationEngine* createRootWindow(QObject* parent);
 
+    /// Allows the plugin to have a chance to initialize the creation of the root (non native) window.
+#if !defined(__mobile__)
+    virtual QGCQmlWidgetHolder* createMainQmlWidgetHolder(QLayout* mainLayout, QWidget *parent);
+#endif
+
     /// Allows the plugin to override the creation of VideoReceiver.
     virtual VideoReceiver* createVideoReceiver(QObject* parent);
 
@@ -138,6 +149,11 @@ public:
     /// Returns the user visible url to show user where to download new stable builds from.
     /// Custom builds must override to provide their own location.
     virtual QString stableDownloadLocation(void) const { return QString("qgroundcontrol.com"); }
+
+    /// Returns the complex mission items to display in the Plan UI
+    ///     @param complexMissionItemNames Default set of complex items
+    /// @return Complex items to be made available to user
+    virtual QStringList complexMissionItemNames(Vehicle* vehicle, const QStringList& complexMissionItemNames) { Q_UNUSED(vehicle); return complexMissionItemNames; }
 
     bool showTouchAreas(void) const { return _showTouchAreas; }
     bool showAdvancedUI(void) const { return _showAdvancedUI; }

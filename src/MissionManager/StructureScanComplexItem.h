@@ -27,8 +27,8 @@ class StructureScanComplexItem : public ComplexMissionItem
 public:
     /// @param vehicle Vehicle which this is being contructed for
     /// @param flyView true: Created for use in the Fly View, false: Created for use in the Plan View
-    /// @param kmlFile Polygon comes from this file, empty for default polygon
-    StructureScanComplexItem(Vehicle* vehicle, bool flyView, const QString& kmlFile, QObject* parent);
+    /// @param kmlOrSHPFile Polygon comes from this file, empty for default polygon
+    StructureScanComplexItem(Vehicle* vehicle, bool flyView, const QString& kmlOrSHPFile, QObject* parent);
 
     Q_PROPERTY(CameraCalc*      cameraCalc                  READ cameraCalc                                                 CONSTANT)
     Q_PROPERTY(Fact*            altitude                    READ altitude                                                   CONSTANT)
@@ -84,6 +84,7 @@ public:
     void            appendMissionItems      (QList<MissionItem*>& items, QObject* missionItemParent) final;
     void            setMissionFlightStatus  (MissionController::MissionFlightStatus_t& missionFlightStatus) final;
     void            applyNewAltitude        (double newAltitude) final;
+    double          additionalTimeDelay     (void) const final { return 0; }
 
     bool coordinateHasRelativeAltitude      (void) const final { return _altitudeRelative; }
     bool exitCoordinateHasRelativeAltitude  (void) const final { return _altitudeRelative; }

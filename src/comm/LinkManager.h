@@ -25,6 +25,7 @@
 #include "MAVLinkProtocol.h"
 #if !defined(__mobile__)
 #include "LogReplayLink.h"
+#include "UdpIODevice.h"
 #endif
 #include "QmlObjectListModel.h"
 
@@ -237,9 +238,12 @@ private:
 
     // NMEA GPS device for GCS position
 #ifndef __mobile__
+#ifndef NO_SERIAL_LINK
     QString      _nmeaDeviceName;
     QSerialPort* _nmeaPort;
     uint32_t     _nmeaBaud;
+    UdpIODevice  _nmeaSocket;
+#endif
 #endif
 };
 

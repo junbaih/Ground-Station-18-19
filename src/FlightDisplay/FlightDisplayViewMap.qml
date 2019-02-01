@@ -295,6 +295,7 @@ FlightMap {
         }
     }
 
+    // GoTo Location visuals
     MapQuickItem {
         id:             gotoLocationItem
         visible:        false
@@ -308,6 +309,22 @@ FlightMap {
             label:      qsTr("Goto here", "Goto here waypoint")
         }
 
+        property bool inGotoFlightMode: _activeVehicle ? _activeVehicle.flightMode === _activeVehicle.gotoFlightMode : false
+        property var activeVehicle: _activeVehicle
+
+        onInGotoFlightModeChanged: {
+            if (!inGotoFlightMode && visible) {
+                // Hide goto indicator when vehicle falls out of guided mode
+                visible = false
+            }
+        }
+
+        onActiveVehicleChanged: {
+            if (!_activeVehicle) {
+                visible = false
+            }
+        }
+
         function show(coord) {
             gotoLocationItem.coordinate = coord
             gotoLocationItem.visible = true
@@ -316,17 +333,34 @@ FlightMap {
         function hide() {
             gotoLocationItem.visible = false
         }
+
+        function actionConfirmed() {
+            // We leave the indicator visible. The handling for onInGuidedModeChanged will hide it.
+        }
+
+        function actionCancelled() {
+            hide()
+        }
     }
 
+    // Orbit editing visuals
     QGCMapCircleVisuals {
-        id:         orbitMapCircle
-        mapControl: parent
-        mapCircle:  _mapCircle
-        visible:    false
+        id:             orbitMapCircle
+        mapControl:     parent
+        mapCircle:      _mapCircle
+        visible:        false
 
-        property alias center:  _mapCircle.center
+        property alias center:              _mapCircle.center
+        property alias clockwiseRotation:   _mapCircle.clockwiseRotation
+        property var   activeVehicle:       _activeVehicle
 
         readonly property real defaultRadius: 30
+
+        onActiveVehicleChanged: {
+            if (!_activeVehicle) {
+                visible = false
+            }
+        }
 
         function show(coord) {
             _mapCircle.radius.rawValue = defaultRadius
@@ -336,6 +370,15 @@ FlightMap {
 
         function hide() {
             orbitMapCircle.visible = false
+        }
+
+        function actionConfirmed() {
+            // Live orbit status is handled by telemetry so we hide here and telemetry will show again.
+            hide()
+        }
+
+        function actionCancelled() {
+            hide()
         }
 
         function radius() {
@@ -348,6 +391,30 @@ FlightMap {
             id:                 _mapCircle
             interactive:        true
             radius.rawValue:    30
+            showRotation:       true
+            clockwiseRotation:  true
+        }
+    }
+
+    // Orbit telemetry visuals
+    QGCMapCircleVisuals {
+        id:             orbitTelemetryCircle
+        mapControl:     parent
+        mapCircle:      _activeVehicle ? _activeVehicle.orbitMapCircle : null
+        visible:        _activeVehicle ? _activeVehicle.orbitActive : false
+    }
+
+    MapQuickItem {
+        id:             orbitCenterIndicator
+        anchorPoint.x:  sourceItem.anchorPointX
+        anchorPoint.y:  sourceItem.anchorPointY
+        coordinate:     _activeVehicle ? _activeVehicle.orbitMapCircle.center : QtPositioning.coordinate()
+        visible:        orbitTelemetryCircle.visible
+
+        sourceItem: MissionItemIndexLabel {
+            checked:    true
+            index:      -1
+            label:      qsTr("Orbit", "Orbit waypoint")
         }
     }
 
@@ -367,7 +434,7 @@ FlightMap {
                 onTriggered: {
                     gotoLocationItem.show(clickMenu.coord)
                     orbitMapCircle.hide()
-                    guidedActionsController.confirmAction(guidedActionsController.actionGoto, clickMenu.coord)
+                    guidedActionsController.confirmAction(guidedActionsController.actionGoto, clickMenu.coord, gotoLocationItem)
                 }
             }
 
@@ -378,7 +445,7 @@ FlightMap {
                 onTriggered: {
                     orbitMapCircle.show(clickMenu.coord)
                     gotoLocationItem.hide()
-                    guidedActionsController.confirmAction(guidedActionsController.actionOrbit, clickMenu.coord)
+                    guidedActionsController.confirmAction(guidedActionsController.actionOrbit, clickMenu.coord, orbitMapCircle)
                 }
             }
         }
@@ -386,7 +453,7 @@ FlightMap {
         onClicked: {
             if (guidedActionsController.guidedUIVisible || (!guidedActionsController.showGotoLocation && !guidedActionsController.showOrbit)) {
                 return
-            }            
+            }
             orbitMapCircle.hide()
             gotoLocationItem.hide()
             var clickCoord = flightMap.toCoordinate(Qt.point(mouse.x, mouse.y), false /* clipToViewPort */)

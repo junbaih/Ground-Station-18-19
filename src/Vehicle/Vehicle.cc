@@ -40,6 +40,7 @@
 #include "QGCCameraManager.h"
 #include "VideoReceiver.h"
 #include "VideoManager.h"
+#include "VideoSettings.h"
 #include "PositionManager.h"
 #if defined(QGC_AIRMAP_ENABLED)
 #include "AirspaceVehicleManager.h"
@@ -85,6 +86,7 @@ const char* Vehicle::_clockFactGroupName =              "clock";
 const char* Vehicle::_distanceSensorFactGroupName =     "distanceSensor";
 const char* Vehicle::_estimatorStatusFactGroupName =    "estimatorStatus";
 
+// Standard connected vehicle
 Vehicle::Vehicle(LinkInterface*             link,
                  int                        vehicleId,
                  int                        defaultComponentId,
@@ -182,6 +184,7 @@ Vehicle::Vehicle(LinkInterface*             link,
     , _uid(0)
     , _lastAnnouncedLowBatteryPercent(100)
     , _priorityLinkCommanded(false)
+    , _orbitActive(false)
     , _rollFact             (0, _rollFactName,              FactMetaData::valueTypeDouble)
     , _pitchFact            (0, _pitchFactName,             FactMetaData::valueTypeDouble)
     , _headingFact          (0, _headingFactName,           FactMetaData::valueTypeDouble)
@@ -282,6 +285,8 @@ Vehicle::Vehicle(LinkInterface*             link,
     _mapTrajectoryTimer.setInterval(_mapTrajectoryMsecsBetweenPoints);
     connect(&_mapTrajectoryTimer, &QTimer::timeout, this, &Vehicle::_addNewMapTrajectoryPoint);
 
+    connect(&_orbitTelemetryTimer, &QTimer::timeout, this, &Vehicle::_orbitTelemetryTimeout);
+
     // Create camera manager instance
     _cameras = _firmwarePlugin->createCameraManager(this);
     emit dynamicCamerasChanged();
@@ -377,6 +382,7 @@ Vehicle::Vehicle(MAV_AUTOPILOT              firmwareType,
     , _gitHash(versionNotSetValue)
     , _uid(0)
     , _lastAnnouncedLowBatteryPercent(100)
+    , _orbitActive(false)
     , _rollFact             (0, _rollFactName,              FactMetaData::valueTypeDouble)
     , _pitchFact            (0, _pitchFactName,             FactMetaData::valueTypeDouble)
     , _headingFact          (0, _headingFactName,           FactMetaData::valueTypeDouble)
@@ -403,6 +409,13 @@ Vehicle::Vehicle(MAV_AUTOPILOT              firmwareType,
     , _distanceSensorFactGroup(this)
 {
     _commonInit();
+
+    // Offline editing vehicle tracks settings changes for offline editing settings
+    connect(_settingsManager->appSettings()->offlineEditingFirmwareType(),  &Fact::rawValueChanged, this, &Vehicle::_offlineFirmwareTypeSettingChanged);
+    connect(_settingsManager->appSettings()->offlineEditingVehicleType(),   &Fact::rawValueChanged, this, &Vehicle::_offlineVehicleTypeSettingChanged);
+    connect(_settingsManager->appSettings()->offlineEditingCruiseSpeed(),   &Fact::rawValueChanged, this, &Vehicle::_offlineCruiseSpeedSettingChanged);
+    connect(_settingsManager->appSettings()->offlineEditingHoverSpeed(),    &Fact::rawValueChanged, this, &Vehicle::_offlineHoverSpeedSettingChanged);
+
     _firmwarePlugin->initializeVehicle(this);
 }
 
@@ -438,12 +451,6 @@ void Vehicle::_commonInit(void)
     _rallyPointManager = new RallyPointManager(this);
     connect(_rallyPointManager, &RallyPointManager::error,          this, &Vehicle::_rallyPointManagerError);
     connect(_rallyPointManager, &RallyPointManager::loadComplete,   this, &Vehicle::_rallyPointLoadComplete);
-
-    // Offline editing vehicle tracks settings changes for offline editing settings
-    connect(_settingsManager->appSettings()->offlineEditingFirmwareType(),  &Fact::rawValueChanged, this, &Vehicle::_offlineFirmwareTypeSettingChanged);
-    connect(_settingsManager->appSettings()->offlineEditingVehicleType(),   &Fact::rawValueChanged, this, &Vehicle::_offlineVehicleTypeSettingChanged);
-    connect(_settingsManager->appSettings()->offlineEditingCruiseSpeed(),   &Fact::rawValueChanged, this, &Vehicle::_offlineCruiseSpeedSettingChanged);
-    connect(_settingsManager->appSettings()->offlineEditingHoverSpeed(),    &Fact::rawValueChanged, this, &Vehicle::_offlineHoverSpeedSettingChanged);
 
     // Flight modes can differ based on advanced mode
     connect(_toolbox->corePlugin(), &QGCCorePlugin::showAdvancedUIChanged, this, &Vehicle::flightModesChanged);
@@ -492,6 +499,12 @@ void Vehicle::_commonInit(void)
 
     _flightDistanceFact.setRawValue(0);
     _flightTimeFact.setRawValue(0);
+
+    // Set video stream to udp if running ArduSub and Video is disabled
+    if (sub() && _settingsManager->videoSettings()->videoSource()->rawValue() == VideoSettings::videoDisabled)
+    {
+        _settingsManager->videoSettings()->videoSource()->setRawValue(VideoSettings::videoSourceUDP);
+    }
 
     //-- Airspace Management
 #if defined(QGC_AIRMAP_ENABLED)
@@ -770,7 +783,13 @@ void Vehicle::_mavlinkMessageReceived(LinkInterface* link, mavlink_message_t mes
         _handleEstimatorStatus(message);
         break;
     case MAVLINK_MSG_ID_STATUSTEXT:
-        _handleStatusText(message);
+        _handleStatusText(message, false /* longVersion */);
+        break;
+    case MAVLINK_MSG_ID_STATUSTEXT_LONG:
+        _handleStatusText(message, true /* longVersion */);
+        break;
+    case MAVLINK_MSG_ID_ORBIT_EXECUTION_STATUS:
+        _handleOrbitExecutionStatus(message);
         break;
 
     case MAVLINK_MSG_ID_PING:
@@ -803,7 +822,6 @@ void Vehicle::_mavlinkMessageReceived(LinkInterface* link, mavlink_message_t mes
     _uas->receiveMessage(message);
 }
 
-
 #if !defined(NO_ARDUPILOT_DIALECT)
 void Vehicle::_handleCameraFeedback(const mavlink_message_t& message)
 {
@@ -816,6 +834,42 @@ void Vehicle::_handleCameraFeedback(const mavlink_message_t& message)
     _cameraTriggerPoints.append(new QGCQGeoCoordinate(imageCoordinate, this));
 }
 #endif
+
+void Vehicle::_handleOrbitExecutionStatus(const mavlink_message_t& message)
+{
+    mavlink_orbit_execution_status_t orbitStatus;
+
+    mavlink_msg_orbit_execution_status_decode(&message, &orbitStatus);
+
+    double newRadius =  qAbs(static_cast<double>(orbitStatus.radius));
+    if (!qFuzzyCompare(_orbitMapCircle.radius()->rawValue().toDouble(), newRadius)) {
+        _orbitMapCircle.radius()->setRawValue(newRadius);
+    }
+
+    bool newOrbitClockwise = orbitStatus.radius > 0 ? true : false;
+    if (_orbitMapCircle.clockwiseRotation() != newOrbitClockwise) {
+        _orbitMapCircle.setClockwiseRotation(newOrbitClockwise);
+    }
+
+    QGeoCoordinate newCenter(static_cast<double>(orbitStatus.x) / qPow(10.0, 7.0), static_cast<double>(orbitStatus.y) / qPow(10.0, 7.0));
+    if (_orbitMapCircle.center() != newCenter) {
+        _orbitMapCircle.setCenter(newCenter);
+    }
+
+    if (!_orbitActive) {
+        _orbitActive = true;
+        _orbitMapCircle.setShowRotation(true);
+        emit orbitActiveChanged(true);
+    }
+
+    _orbitTelemetryTimer.start(_orbitTelemetryTimeoutMsecs);
+}
+
+void Vehicle::_orbitTelemetryTimeout(void)
+{
+    _orbitActive = false;
+    emit orbitActiveChanged(false);
+}
 
 void Vehicle::_handleCameraImageCaptured(const mavlink_message_t& message)
 {
@@ -830,15 +884,23 @@ void Vehicle::_handleCameraImageCaptured(const mavlink_message_t& message)
     }
 }
 
-void Vehicle::_handleStatusText(mavlink_message_t& message)
+void Vehicle::_handleStatusText(mavlink_message_t& message, bool longVersion)
 {
-    QByteArray b;
+    QByteArray  b;
+    QString     messageText;
+    int         severity;
 
-    b.resize(MAVLINK_MSG_STATUSTEXT_FIELD_TEXT_LEN+1);
-    mavlink_msg_statustext_get_text(&message, b.data());
+    if (longVersion) {
+        b.resize(MAVLINK_MSG_STATUSTEXT_LONG_FIELD_TEXT_LEN+1);
+        mavlink_msg_statustext_long_get_text(&message, b.data());
+        severity = mavlink_msg_statustext_long_get_severity(&message);
+    } else {
+        b.resize(MAVLINK_MSG_STATUSTEXT_FIELD_TEXT_LEN+1);
+        mavlink_msg_statustext_get_text(&message, b.data());
+        severity = mavlink_msg_statustext_get_severity(&message);
+    }
     b[b.length()-1] = '\0';
-    QString messageText = QString(b);
-    int severity = mavlink_msg_statustext_get_severity(&message);
+    messageText = QString(b);
 
     bool skipSpoken = false;
     bool ardupilotPrearm = messageText.startsWith(QStringLiteral("PreArm"));
@@ -2163,11 +2225,6 @@ void Vehicle::resetMessages()
     }
 }
 
-int Vehicle::manualControlReservedButtonCount(void)
-{
-    return _firmwarePlugin->manualControlReservedButtonCount();
-}
-
 void Vehicle::_loadSettings(void)
 {
     if (!_active) {
@@ -2911,6 +2968,11 @@ bool Vehicle::takeoffVehicleSupported() const
     return _firmwarePlugin->isCapable(this, FirmwarePlugin::TakeoffVehicleCapability);
 }
 
+QString Vehicle::gotoFlightMode() const
+{
+    return _firmwarePlugin->gotoFlightMode();
+}
+
 void Vehicle::guidedModeRTL(void)
 {
     if (!guidedModeSupported()) {
@@ -2981,7 +3043,7 @@ void Vehicle::guidedModeOrbit(const QGeoCoordinate& centerCoord, double radius, 
         return;
     }
 
-    if (capabilityBits() && MAV_PROTOCOL_CAPABILITY_COMMAND_INT) {
+    if (capabilityBits() & MAV_PROTOCOL_CAPABILITY_COMMAND_INT) {
         sendMavCommandInt(defaultComponentId(),
                           MAV_CMD_DO_ORBIT,
                           MAV_FRAME_GLOBAL,

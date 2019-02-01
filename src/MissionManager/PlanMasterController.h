@@ -44,13 +44,13 @@ public:
     ///< kml file extension for missions
     Q_PROPERTY(QStringList  loadNameFilters     READ loadNameFilters                    CONSTANT)                       ///< File filter list loading plan files
     Q_PROPERTY(QStringList  saveNameFilters     READ saveNameFilters                    CONSTANT)                       ///< File filter list saving plan files
-    Q_PROPERTY(QStringList  fileKmlFilters      READ fileKmlFilters                     CONSTANT)                       ///< File filter list for load/save KML files
 
     /// Should be called immediately upon Component.onCompleted.
     Q_INVOKABLE void start(bool flyView);
 
     /// Starts the controller using a single static active vehicle. Will not track global active vehicle changes.
-    Q_INVOKABLE void startStaticActiveVehicle(Vehicle* vehicle);
+    ///     @param deleteWhenSendCmplete The PlanMasterController object should be deleted after the first send is completed.
+    Q_INVOKABLE void startStaticActiveVehicle(Vehicle* vehicle, bool deleteWhenSendCompleted = false);
 
     /// Determines if the plan has all data needed to be saved or sent to the vehicle. Currently the only case where this
     /// would return false is when it is still waiting on terrain data to determine correct altitudes.
@@ -84,7 +84,6 @@ public:
     QString     currentPlanFile (void) const { return _currentPlanFile; }
     QStringList loadNameFilters (void) const;
     QStringList saveNameFilters (void) const;
-    QStringList fileKmlFilters  (void) const;
 
     QJsonDocument saveToJson    ();
 
@@ -129,5 +128,6 @@ private:
     bool                    _sendGeoFence;
     bool                    _sendRallyPoints;
     QString                 _currentPlanFile;
+    bool                    _deleteWhenSendCompleted;
 
 };

@@ -13,6 +13,12 @@ Note: This file only contains high level features or important fixes.
 * Make Heading to Home available for display from instrument panel.
 * Edit Position dialog available on polygon vertices.
 * Fixed Wing Landing Pattern: Add stop photo/video support. Defaults to on such that doing an RTL will stop camera.
+* Survey Planning: add mode that supports concave polygons
+* Support loading polygons from SHP files
+* Bumped settings version (now 8). This will cause all settings to be reset to defaults.
+* Orbit visuals support changing rotation direction
+* Added support for the Taisync 2.4GHz ViUlinx digital HD wireless link.
+* Added UDP Port option for NMEA GPS Device.
 
 ## 3.4
 
@@ -22,6 +28,7 @@ Note: This file only contains high level features or important fixes.
 * Structure Scan: Fix loading of structure scan height
 * ArduPilot: Fix location of planned home position when not connected to vehicle. Issue #6840.
 * Fix loading of parameters from multiple components. Would report download complete too early, thus missing all default component params.
+* Fix file delete in mobile file dialogs
 
 ### 3.4.4 - Stable
 * Stable desktop versions now inform user at boot if newer version is available.

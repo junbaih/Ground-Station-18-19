@@ -23,6 +23,11 @@
 #include "QGCLoggingCategory.h"
 #include "AppSettings.h"
 #include "AirspaceManager.h"
+#if defined(QGC_GST_TAISYNC_ENABLED)
+#include "TaisyncManager.h"
+#else
+class TaisyncManager;
+#endif
 
 #ifdef QT_DEBUG
 #include "MockLink.h"
@@ -38,6 +43,15 @@ public:
     QGroundControlQmlGlobal(QGCApplication* app, QGCToolbox* toolbox);
     ~QGroundControlQmlGlobal();
 
+    enum AltitudeMode {
+        AltitudeModeNone,           // Being used as distance value unrelated to ground (for example distance to structure)
+        AltitudeModeRelative,       // MAV_FRAME_GLOBAL_RELATIVE_ALT
+        AltitudeModeAbsolute,       // MAV_FRAME_GLOBAL
+        AltitudeModeAboveTerrain,   // Absolute altitude above terrain calculated from terrain data
+        AltitudeModeTerrainFrame    // MAV_FRAME_GLOBAL_TERRAIN_ALT
+    };
+    Q_ENUM(AltitudeMode)
+
     Q_PROPERTY(QString              appName             READ appName                CONSTANT)
 
     Q_PROPERTY(LinkManager*         linkManager         READ linkManager            CONSTANT)
@@ -52,6 +66,8 @@ public:
     Q_PROPERTY(FactGroup*           gpsRtk              READ gpsRtkFactGroup        CONSTANT)
     Q_PROPERTY(AirspaceManager*     airspaceManager     READ airspaceManager        CONSTANT)
     Q_PROPERTY(bool                 airmapSupported     READ airmapSupported        CONSTANT)
+    Q_PROPERTY(TaisyncManager*      taisyncManager      READ taisyncManager         CONSTANT)
+    Q_PROPERTY(bool                 taisyncSupported    READ taisyncSupported       CONSTANT)
 
     Q_PROPERTY(int      supportedFirmwareCount          READ supportedFirmwareCount CONSTANT)
 
@@ -145,6 +161,13 @@ public:
     static QGeoCoordinate   flightMapPosition   ()  { return _coord; }
     static double           flightMapZoom       ()  { return _zoom; }
 
+    TaisyncManager*         taisyncManager      ()  { return _taisyncManager; }
+#if defined(QGC_GST_TAISYNC_ENABLED)
+    bool                    taisyncSupported    () { return true; }
+#else
+    bool                    taisyncSupported    () { return false; }
+#endif
+
     qreal zOrderTopMost             () { return 1000; }
     qreal zOrderWidgets             () { return 100; }
     qreal zOrderMapItems            () { return 50; }
@@ -189,21 +212,22 @@ signals:
     void skipSetupPageChanged           ();
 
 private:
-    double                  _flightMapInitialZoom;
-    LinkManager*            _linkManager;
-    MultiVehicleManager*    _multiVehicleManager;
-    QGCMapEngineManager*    _mapEngineManager;
-    QGCPositionManager*     _qgcPositionManager;
-    MissionCommandTree*     _missionCommandTree;
-    VideoManager*           _videoManager;
-    MAVLinkLogManager*      _mavlinkLogManager;
-    QGCCorePlugin*          _corePlugin;
-    FirmwarePluginManager*  _firmwarePluginManager;
-    SettingsManager*        _settingsManager;
-    FactGroup*              _gpsRtkFactGroup;
-    AirspaceManager*        _airspaceManager;
+    double                  _flightMapInitialZoom   = 17.0;
+    LinkManager*            _linkManager            = nullptr;
+    MultiVehicleManager*    _multiVehicleManager    = nullptr;
+    QGCMapEngineManager*    _mapEngineManager       = nullptr;
+    QGCPositionManager*     _qgcPositionManager     = nullptr;
+    MissionCommandTree*     _missionCommandTree     = nullptr;
+    VideoManager*           _videoManager           = nullptr;
+    MAVLinkLogManager*      _mavlinkLogManager      = nullptr;
+    QGCCorePlugin*          _corePlugin             = nullptr;
+    FirmwarePluginManager*  _firmwarePluginManager  = nullptr;
+    SettingsManager*        _settingsManager        = nullptr;
+    FactGroup*              _gpsRtkFactGroup        = nullptr;
+    AirspaceManager*        _airspaceManager        = nullptr;
+    TaisyncManager*         _taisyncManager         = nullptr;
 
-    bool                    _skipSetupPage;
+    bool                    _skipSetupPage          = false;
 
     static const char* _flightMapPositionSettingsGroup;
     static const char* _flightMapPositionLatitudeSettingsKey;
