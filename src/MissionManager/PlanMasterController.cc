@@ -275,13 +275,22 @@ void PlanMasterController::sendToVehicle(void)
 
     if (offline()) {
         qCWarning(PlanMasterControllerLog) << "PlanMasterController::sendToVehicle called while offline";
+        qDebug() << "wtf1";
     } else if (syncInProgress()) {
         qCWarning(PlanMasterControllerLog) << "PlanMasterController::sendToVehicle called while syncInProgress";
+        qDebug() << "wtf2";
     } else {
         qCDebug(PlanMasterControllerLog) << "PlanMasterController::sendToVehicle start mission sendToVehicle";
         _sendGeoFence = true;
+        //_sendRallyPoints = true;
         _missionController.sendToVehicle();
+        _geoFenceController.sendToVehicle();
+        _rallyPointController.sendToVehicle();
+        // hongminy
+        // modified, autoload mission fixed
+
         setDirty(false);
+        qDebug() << "sendtoVehicle()";
     }
 }
 
@@ -368,6 +377,7 @@ void PlanMasterController::loadFromFile(const QString& filename)
     if (!offline()) {
         setDirty(true);
     }
+    qDebug() << "loaded";
 }
 
 QJsonDocument PlanMasterController::saveToJson()
@@ -541,11 +551,13 @@ QStringList PlanMasterController::fileKmlFilters(void) const
 
 void PlanMasterController::sendPlanToVehicle(Vehicle* vehicle, const QString& filename)
 {
-    // Use a transient PlanMasterController to accomplish this
+    //Use a transient PlanMasterController to accomplish this
     PlanMasterController* controller = new PlanMasterController();
     controller->startStaticActiveVehicle(vehicle);
     controller->loadFromFile(filename);
     controller->sendToVehicle();
+    qDebug() << "sendplantovehicle";
+
     delete controller;
 }
 
