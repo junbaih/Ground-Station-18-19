@@ -40,8 +40,11 @@
 #include "QGCCameraManager.h"
 #include "VideoReceiver.h"
 #include "VideoManager.h"
+<<<<<<< HEAD
 #include "VideoSettings.h"
 
+=======
+>>>>>>> parent of 5019626a2... default plan file name "UAV_FORGE.plan"
 #include "PositionManager.h"
 #if defined(QGC_AIRMAP_ENABLED)
 #include "AirspaceVehicleManager.h"
@@ -1147,6 +1150,7 @@ void Vehicle::_handleGpsRawInt(mavlink_message_t& message)
     float heading = _headingFact.cookedValue().toFloat();
     qgcApp()->getInterop()->sendTelemetry(lat,lon,alt,heading);
     //end of modification
+
 
 }
 
