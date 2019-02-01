@@ -33,23 +33,22 @@ const char* PlanMasterController::kJsonGeoFenceObjectKey =      "geoFence";
 const char* PlanMasterController::kJsonRallyPointsObjectKey =   "rallyPoints";
 
 PlanMasterController::PlanMasterController(QObject* parent)
-    : QObject                   (parent)
-    , _multiVehicleMgr          (qgcApp()->toolbox()->multiVehicleManager())
-    , _controllerVehicle        (new Vehicle(
+    : QObject               (parent)
+    , _multiVehicleMgr      (qgcApp()->toolbox()->multiVehicleManager())
+    , _controllerVehicle    (new Vehicle(
         static_cast<MAV_AUTOPILOT>(qgcApp()->toolbox()->settingsManager()->appSettings()->offlineEditingFirmwareType()->rawValue().toInt()),
         static_cast<MAV_TYPE>(qgcApp()->toolbox()->settingsManager()->appSettings()->offlineEditingVehicleType()->rawValue().toInt()),
         qgcApp()->toolbox()->firmwarePluginManager()))
-    , _managerVehicle           (_controllerVehicle)
-    , _flyView                  (true)
-    , _offline                  (true)
-    , _missionController        (this)
-    , _geoFenceController       (this)
-    , _rallyPointController     (this)
-    , _loadGeoFence             (false)
-    , _loadRallyPoints          (false)
-    , _sendGeoFence             (false)
-    , _sendRallyPoints          (false)
-    , _deleteWhenSendCompleted  (false)
+    , _managerVehicle       (_controllerVehicle)
+    , _flyView              (true)
+    , _offline              (true)
+    , _missionController    (this)
+    , _geoFenceController   (this)
+    , _rallyPointController (this)
+    , _loadGeoFence         (false)
+    , _loadRallyPoints      (false)
+    , _sendGeoFence         (false)
+    , _sendRallyPoints      (false)
 {
     connect(&_missionController,    &MissionController::dirtyChanged,       this, &PlanMasterController::dirtyChanged);
     connect(&_geoFenceController,   &GeoFenceController::dirtyChanged,      this, &PlanMasterController::dirtyChanged);
@@ -87,10 +86,9 @@ void PlanMasterController::start(bool flyView)
 #endif
 }
 
-void PlanMasterController::startStaticActiveVehicle(Vehicle* vehicle, bool deleteWhenSendCompleted)
+void PlanMasterController::startStaticActiveVehicle(Vehicle* vehicle)
 {
     _flyView = true;
-    _deleteWhenSendCompleted = deleteWhenSendCompleted;
     _missionController.start(_flyView);
     _geoFenceController.start(_flyView);
     _rallyPointController.start(_flyView);
@@ -266,9 +264,6 @@ void PlanMasterController::_sendGeoFenceComplete(void)
 void PlanMasterController::_sendRallyPointsComplete(void)
 {
     qCDebug(PlanMasterControllerLog) << "PlanMasterController::sendToVehicle Rally Point send complete";
-    if (_deleteWhenSendCompleted) {
-        this->deleteLater();
-    }
 }
 
 void PlanMasterController::sendToVehicle(void)
@@ -546,11 +541,19 @@ QStringList PlanMasterController::saveNameFilters(void) const
     return filters;
 }
 
+QStringList PlanMasterController::fileKmlFilters(void) const
+{
+    QStringList filters;
+
+    filters << tr("KML Files (*.%1)").arg(kmlFileExtension()) << tr("All Files (*.*)");
+    return filters;
+}
+
 void PlanMasterController::sendPlanToVehicle(Vehicle* vehicle, const QString& filename)
 {
     //Use a transient PlanMasterController to accomplish this
     PlanMasterController* controller = new PlanMasterController();
-    controller->startStaticActiveVehicle(vehicle, true /* deleteWhenSendCompleted */);
+    controller->startStaticActiveVehicle(vehicle);
     controller->loadFromFile(filename);
     controller->sendToVehicle();
     qDebug() << "sendplantovehicle";
