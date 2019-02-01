@@ -488,6 +488,7 @@ bool QGCApplication::_initForNormalAppBoot(void)
     try
     {
     _interopClient = new Interop("testuser","testpass");
+    _interopClient->getMissions();
     }
     catch(...)
     {
