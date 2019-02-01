@@ -40,11 +40,8 @@
 #include "QGCCameraManager.h"
 #include "VideoReceiver.h"
 #include "VideoManager.h"
-<<<<<<< HEAD
 #include "VideoSettings.h"
 #include "PositionManager.h"
-=======
->>>>>>> 5019626a2795bfdcc33b577246fa73af8a6b3fcf
 #if defined(QGC_AIRMAP_ENABLED)
 #include "AirspaceVehicleManager.h"
 #endif
@@ -1130,7 +1127,14 @@ void Vehicle::_handleGpsRawInt(mavlink_message_t& message)
     _gpsFactGroup.lock()->setRawValue(gpsRawInt.fix_type);
     //hongminy
     qDebug() << "GPS TELE: " << _gpsFactGroup.lat()->cookedValue() << "," << _gpsFactGroup.lon()->cookedValue() << endl;
-    qDebug() << "Heading: "<< _headingFact.metaData() << endl;
+    qDebug() << "ASMSL :" << _altitudeAMSLFact.cookedValue()<<endl;
+    qDebug() << "Heading: "<< _headingFact.cookedValue() << endl;
+
+    float lat = _gpsFactGroup.lat()->cookedValue().toFloat();
+    float lon = _gpsFactGroup.lon()->cookedValue().toFloat();
+    float alt = _altitudeAMSLFact.cookedValue().toFloat();
+    float heading = _headingFact.cookedValue().toFloat();
+    qgcApp()->getInterop()->sendTelemetry(lat,lon,alt,heading);
     //end of modification
 }
 

@@ -1,7 +1,10 @@
-#include "qplantranslator.h"
 #include <QMessageBox>
 #include <QDir>
-
+#include <QObject>
+#include "QGCApplication.h"
+#include "AppSettings.h"
+#include "qplantranslator.h"
+#include "SettingsManager.h"
 qPlanTranslator::qPlanTranslator()
 {
 
@@ -16,8 +19,14 @@ void qPlanTranslator::translate(const QString& missionPath)
         qDebug()<<"mission file not opened";
         return;
     }
-    QFile planFile(QDir::rootPath()+"home/junbaih/Documents/QGroundControl/Missions/AutoLoad1.plan");
-    qDebug()<<QDir::rootPath()+"home/junbaih/Documents/QGroundControl/Missions/AutoLoad1.plan";
+    SettingsManager* _setmngr = qgcApp()->toolbox()->settingsManager();
+    QString planPath = _setmngr->appSettings()->missionSavePath();
+    QDir missionAutoLoadDir(planPath);
+    // default file name was modified to be UAV_FORGE.plan
+    // hongminy
+    QString autoloadFilename = missionAutoLoadDir.absolutePath()+"UAV_FORGE.plan";
+    qDebug()<<" plan file in :"<<autoloadFilename<<endl;
+    QFile planFile(autoloadFilename);
     if (!planFile.open(QFile::ReadWrite|QFile::Truncate))
        {
         qDebug()<<"plan file not opened";
