@@ -1,4 +1,4 @@
-/****************************************************************************
+ /****************************************************************************
  *
  *   (c) 2009-2016 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
  *
@@ -11,6 +11,7 @@
 #include <QDateTime>
 #include <QLocale>
 #include <QQuaternion>
+#include <QTextStream>
 
 #include "Vehicle.h"
 #include "MAVLinkProtocol.h"
@@ -39,7 +40,6 @@
 #include "QGCCameraManager.h"
 #include "VideoReceiver.h"
 #include "VideoManager.h"
-#include "PositionManager.h"
 #if defined(QGC_AIRMAP_ENABLED)
 #include "AirspaceVehicleManager.h"
 #endif
@@ -70,8 +70,6 @@ const char* Vehicle::_altitudeAMSLFactName =        "altitudeAMSL";
 const char* Vehicle::_flightDistanceFactName =      "flightDistance";
 const char* Vehicle::_flightTimeFactName =          "flightTime";
 const char* Vehicle::_distanceToHomeFactName =      "distanceToHome";
-const char* Vehicle::_headingToHomeFactName =       "headingToHome";
-const char* Vehicle::_distanceToGCSFactName =       "distanceToGCS";
 const char* Vehicle::_hobbsFactName =               "hobbs";
 
 const char* Vehicle::_gpsFactGroupName =                "gps";
@@ -195,8 +193,6 @@ Vehicle::Vehicle(LinkInterface*             link,
     , _flightDistanceFact   (0, _flightDistanceFactName,    FactMetaData::valueTypeDouble)
     , _flightTimeFact       (0, _flightTimeFactName,        FactMetaData::valueTypeElapsedTimeInSeconds)
     , _distanceToHomeFact   (0, _distanceToHomeFactName,    FactMetaData::valueTypeDouble)
-    , _headingToHomeFact    (0, _headingToHomeFactName,     FactMetaData::valueTypeDouble)
-    , _distanceToGCSFact    (0, _distanceToGCSFactName,     FactMetaData::valueTypeDouble)
     , _hobbsFact            (0, _hobbsFactName,             FactMetaData::valueTypeString)
     , _gpsFactGroup(this)
     , _battery1FactGroup(this)
@@ -390,8 +386,6 @@ Vehicle::Vehicle(MAV_AUTOPILOT              firmwareType,
     , _flightDistanceFact   (0, _flightDistanceFactName,    FactMetaData::valueTypeDouble)
     , _flightTimeFact       (0, _flightTimeFactName,        FactMetaData::valueTypeElapsedTimeInSeconds)
     , _distanceToHomeFact   (0, _distanceToHomeFactName,    FactMetaData::valueTypeDouble)
-    , _headingToHomeFact    (0, _headingToHomeFactName,     FactMetaData::valueTypeDouble)
-    , _distanceToGCSFact    (0, _distanceToGCSFactName,     FactMetaData::valueTypeDouble)
     , _hobbsFact            (0, _hobbsFactName,             FactMetaData::valueTypeString)
     , _gpsFactGroup(this)
     , _battery1FactGroup(this)
@@ -411,12 +405,9 @@ void Vehicle::_commonInit(void)
 
     connect(_firmwarePlugin, &FirmwarePlugin::toolbarIndicatorsChanged, this, &Vehicle::toolBarIndicatorsChanged);
 
-    connect(this, &Vehicle::coordinateChanged,      this, &Vehicle::_updateDistanceHeadingToHome);
-    connect(this, &Vehicle::coordinateChanged,      this, &Vehicle::_updateDistanceToGCS);
-    connect(this, &Vehicle::homePositionChanged,    this, &Vehicle::_updateDistanceHeadingToHome);
+    connect(this, &Vehicle::coordinateChanged,      this, &Vehicle::_updateDistanceToHome);
+    connect(this, &Vehicle::homePositionChanged,    this, &Vehicle::_updateDistanceToHome);
     connect(this, &Vehicle::hobbsMeterChanged,      this, &Vehicle::_updateHobbsMeter);
-
-    connect(_toolbox->qgcPositionManager(), &QGCPositionManager::gcsPositionChanged, this, &Vehicle::_updateDistanceToGCS);
 
     _missionManager = new MissionManager(this);
     connect(_missionManager, &MissionManager::error,                    this, &Vehicle::_missionManagerError);
@@ -463,8 +454,6 @@ void Vehicle::_commonInit(void)
     _addFact(&_flightDistanceFact,      _flightDistanceFactName);
     _addFact(&_flightTimeFact,          _flightTimeFactName);
     _addFact(&_distanceToHomeFact,      _distanceToHomeFactName);
-    _addFact(&_headingToHomeFact,       _headingToHomeFactName);
-    _addFact(&_distanceToGCSFact,       _distanceToGCSFactName);
 
     _hobbsFact.setRawValue(QVariant(QString("0000:00:00")));
     _addFact(&_hobbsFact,               _hobbsFactName);
@@ -1044,6 +1033,8 @@ void Vehicle::_handleAttitudeQuaternion(mavlink_message_t& message)
     rollRate()->setRawValue(qRadiansToDegrees(attitudeQuaternion.rollspeed));
     pitchRate()->setRawValue(qRadiansToDegrees(attitudeQuaternion.pitchspeed));
     yawRate()->setRawValue(qRadiansToDegrees(attitudeQuaternion.yawspeed));
+
+
 }
 
 void Vehicle::_handleGpsRawInt(mavlink_message_t& message)
@@ -1071,6 +1062,10 @@ void Vehicle::_handleGpsRawInt(mavlink_message_t& message)
     _gpsFactGroup.vdop()->setRawValue(gpsRawInt.epv == UINT16_MAX ? std::numeric_limits<double>::quiet_NaN() : gpsRawInt.epv / 100.0);
     _gpsFactGroup.courseOverGround()->setRawValue(gpsRawInt.cog == UINT16_MAX ? std::numeric_limits<double>::quiet_NaN() : gpsRawInt.cog / 100.0);
     _gpsFactGroup.lock()->setRawValue(gpsRawInt.fix_type);
+    //hongminy
+    qDebug() << "GPS TELE: " << _gpsFactGroup.lat()->cookedValue() << "," << _gpsFactGroup.lon()->cookedValue() << endl;
+    qDebug() << "Heading: "<< _headingFact.metaData() << endl;
+    //end of modification
 }
 
 void Vehicle::_handleGlobalPositionInt(mavlink_message_t& message)
@@ -1186,6 +1181,9 @@ void Vehicle::_handleAltitude(mavlink_message_t& message)
             _altitudeAMSLFact.setRawValue(altitude.altitude_amsl);
         }
     }
+    //hongminy
+    qDebug() << "Alt TELE: " << altitude.altitude_amsl << endl;
+    //end of modification
 }
 
 void Vehicle::_setCapabilities(uint64_t capabilityBits)
@@ -1998,47 +1996,6 @@ int Vehicle::motorCount(void)
         return 6;
     case MAV_TYPE_OCTOROTOR:
         return 8;
-    case MAV_TYPE_SUBMARINE:
-    {
-        // Supported frame types
-        enum {
-            SUB_FRAME_BLUEROV1,
-            SUB_FRAME_VECTORED,
-            SUB_FRAME_VECTORED_6DOF,
-            SUB_FRAME_VECTORED_6DOF_90DEG,
-            SUB_FRAME_SIMPLEROV_3,
-            SUB_FRAME_SIMPLEROV_4,
-            SUB_FRAME_SIMPLEROV_5,
-            SUB_FRAME_CUSTOM
-        };
-
-        uint8_t frameType = parameterManager()->getParameter(_compID, "FRAME_CONFIG")->rawValue().toInt();
-
-        switch (frameType) {  // ardupilot/libraries/AP_Motors/AP_Motors6DOF.h sub_frame_t
-
-        case SUB_FRAME_BLUEROV1:
-        case SUB_FRAME_VECTORED:
-            return 6;
-
-        case SUB_FRAME_SIMPLEROV_3:
-            return 3;
-
-        case SUB_FRAME_SIMPLEROV_4:
-            return 4;
-
-        case SUB_FRAME_SIMPLEROV_5:
-            return 5;
-
-        case SUB_FRAME_VECTORED_6DOF:
-        case SUB_FRAME_VECTORED_6DOF_90DEG:
-        case SUB_FRAME_CUSTOM:
-            return 8;
-
-        default:
-            return -1;
-        }
-    }
-
     default:
         return -1;
     }
@@ -2057,7 +2014,7 @@ bool Vehicle::xConfigMotors(void)
 QString Vehicle::formatedMessages()
 {
     QString messages;
-    for(UASMessage* message: _toolbox->uasMessageHandler()->messages()) {
+    foreach(UASMessage* message, _toolbox->uasMessageHandler()->messages()) {
         messages += message->getFormatedText();
     }
     return messages;
@@ -2334,7 +2291,7 @@ QString Vehicle::priorityLinkName(void) const
 QVariantList Vehicle::links(void) const {
     QVariantList ret;
 
-    for( const auto &item: _links )
+    foreach( const auto &item, _links )
         ret << QVariant::fromValue(item);
 
     return ret;
@@ -2522,10 +2479,13 @@ void Vehicle::_startPlanRequest(void)
             QString missionAutoLoadDirPath = _settingsManager->appSettings()->missionSavePath();
             if (!missionAutoLoadDirPath.isEmpty()) {
                 QDir missionAutoLoadDir(missionAutoLoadDirPath);
-                QString autoloadFilename = missionAutoLoadDir.absoluteFilePath(tr("AutoLoad%1.%2").arg(_id).arg(AppSettings::planFileExtension));
+                // default file name was modified to be UAV_FORGE.plan
+                // hongminy
+                QString autoloadFilename = missionAutoLoadDir.absoluteFilePath(tr("UAV_FORGE.%2").arg(AppSettings::planFileExtension));
                 if (QFile(autoloadFilename).exists()) {
                     _initialPlanRequestComplete = true; // We aren't going to load from the vehicle, so we are done
                     PlanMasterController::sendPlanToVehicle(this, autoloadFilename);
+                    qDebug() << "bibibi";
                     return;
                 }
             }
@@ -3343,10 +3303,13 @@ void Vehicle::setSoloFirmware(bool soloFirmware)
     }
 }
 
-void Vehicle::motorTest(int motor, int percent)
+#if 0
+// Temporarily removed, waiting for new command implementation
+void Vehicle::motorTest(int motor, int percent, int timeoutSecs)
 {
-    sendMavCommand(_defaultComponentId, MAV_CMD_DO_MOTOR_TEST, true, motor, MOTOR_TEST_THROTTLE_PERCENT, percent, 0, 0, MOTOR_TEST_ORDER_BOARD);
+    doCommandLongUnverified(_defaultComponentId, MAV_CMD_DO_MOTOR_TEST, motor, MOTOR_TEST_THROTTLE_PERCENT, percent, timeoutSecs);
 }
+#endif
 
 QString Vehicle::brandImageIndoor(void) const
 {
@@ -3639,28 +3602,12 @@ void Vehicle::_handleADSBVehicle(const mavlink_message_t& message)
     }
 }
 
-void Vehicle::_updateDistanceHeadingToHome(void)
+void Vehicle::_updateDistanceToHome(void)
 {
     if (coordinate().isValid() && homePosition().isValid()) {
         _distanceToHomeFact.setRawValue(coordinate().distanceTo(homePosition()));
-        if (_distanceToHomeFact.rawValue().toDouble() > 1.0) {
-            _headingToHomeFact.setRawValue(coordinate().azimuthTo(homePosition()));
-        } else {
-            _headingToHomeFact.setRawValue(qQNaN());
-        }
     } else {
         _distanceToHomeFact.setRawValue(qQNaN());
-        _headingToHomeFact.setRawValue(qQNaN());
-    }
-}
-
-void Vehicle::_updateDistanceToGCS(void)
-{
-    QGeoCoordinate gcsPosition = _toolbox->qgcPositionManager()->gcsPosition();
-    if (coordinate().isValid() && gcsPosition.isValid()) {
-        _distanceToGCSFact.setRawValue(coordinate().distanceTo(gcsPosition));
-    } else {
-        _distanceToGCSFact.setRawValue(qQNaN());
     }
 }
 
@@ -3733,7 +3680,7 @@ void Vehicle::_updateHighLatencyLink(bool sendCommand)
 void Vehicle::_trafficUpdate(bool alert, QString traffic_id, QString vehicle_id, QGeoCoordinate location, float heading)
 {
     Q_UNUSED(vehicle_id);
-    // qDebug() << "traffic update:" << traffic_id << vehicle_id << heading << location;
+    //qDebug() << "traffic update:" << traffic_id << vehicle_id << heading << location;
     // TODO: filter based on minimum altitude?
     if (_trafficVehicleMap.contains(traffic_id)) {
         _trafficVehicleMap[traffic_id]->update(alert, location, heading);
