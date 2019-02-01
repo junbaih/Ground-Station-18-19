@@ -18,6 +18,10 @@
 #include "VideoReceiver.h"
 #include "QGCLoggingCategory.h"
 
+#if !defined(__mobile__)
+#include "QGCQmlWidgetHolder.h"
+#endif
+
 #include <QtQml>
 #include <QQmlEngine>
 
@@ -29,25 +33,6 @@ class QGCCorePlugin_p
 {
 public:
     QGCCorePlugin_p()
-        : pGeneral                  (nullptr)
-        , pCommLinks                (nullptr)
-        , pOfflineMaps              (nullptr)
-    #if defined(QGC_AIRMAP_ENABLED)
-        , pAirmap                   (nullptr)
-    #endif
-        , pMAVLink                  (nullptr)
-        , pConsole                  (nullptr)
-        , pHelp                     (nullptr)
-    #if defined(QT_DEBUG)
-        , pMockLink                 (nullptr)
-        , pDebug                    (nullptr)
-    #endif
-        , defaultOptions            (nullptr)
-        , valuesPageWidgetInfo      (nullptr)
-        , cameraPageWidgetInfo      (nullptr)
-        , videoPageWidgetInfo       (nullptr)
-        , healthPageWidgetInfo      (nullptr)
-        , vibrationPageWidgetInfo   (nullptr)
     {
     }
 
@@ -59,6 +44,10 @@ public:
             delete pCommLinks;
         if(pOfflineMaps)
             delete pOfflineMaps;
+#if defined(QGC_GST_TAISYNC_ENABLED)
+        if(pTaisync)
+            delete pTaisync;
+#endif
 #if defined(QGC_AIRMAP_ENABLED)
         if(pAirmap)
             delete pAirmap;
@@ -77,27 +66,31 @@ public:
             delete defaultOptions;
     }
 
-    QmlComponentInfo* pGeneral;
-    QmlComponentInfo* pCommLinks;
-    QmlComponentInfo* pOfflineMaps;
+    QmlComponentInfo* pGeneral                  = nullptr;
+    QmlComponentInfo* pCommLinks                = nullptr;
+    QmlComponentInfo* pOfflineMaps              = nullptr;
+#if defined(QGC_GST_TAISYNC_ENABLED)
+    QmlComponentInfo* pTaisync                  = nullptr;
+#endif
 #if defined(QGC_AIRMAP_ENABLED)
-    QmlComponentInfo* pAirmap;
+    QmlComponentInfo* pAirmap                   = nullptr;
 #endif
-    QmlComponentInfo* pMAVLink;
-    QmlComponentInfo* pConsole;
-    QmlComponentInfo* pHelp;
+    QmlComponentInfo* pMAVLink                  = nullptr;
+    QmlComponentInfo* pConsole                  = nullptr;
+    QmlComponentInfo* pHelp                     = nullptr;
 #if defined(QT_DEBUG)
-    QmlComponentInfo* pMockLink;
-    QmlComponentInfo* pDebug;
+    QmlComponentInfo* pMockLink                 = nullptr;
+    QmlComponentInfo* pDebug                    = nullptr;
 #endif
-    QVariantList settingsList;
-    QGCOptions*  defaultOptions;
 
-    QmlComponentInfo*   valuesPageWidgetInfo;
-    QmlComponentInfo*   cameraPageWidgetInfo;
-    QmlComponentInfo*   videoPageWidgetInfo;
-    QmlComponentInfo*   healthPageWidgetInfo;
-    QmlComponentInfo*   vibrationPageWidgetInfo;
+    QmlComponentInfo*   valuesPageWidgetInfo    = nullptr;
+    QmlComponentInfo*   cameraPageWidgetInfo    = nullptr;
+    QmlComponentInfo*   videoPageWidgetInfo     = nullptr;
+    QmlComponentInfo*   healthPageWidgetInfo    = nullptr;
+    QmlComponentInfo*   vibrationPageWidgetInfo = nullptr;
+
+    QGCOptions*         defaultOptions          = nullptr;
+    QVariantList        settingsList;
     QVariantList        instrumentPageWidgetList;
 
     QmlObjectListModel _emptyCustomMapItems;
@@ -141,6 +134,12 @@ QVariantList &QGCCorePlugin::settingsPages()
             QUrl::fromUserInput("qrc:/qml/OfflineMap.qml"),
             QUrl::fromUserInput("qrc:/res/waves.svg"));
         _p->settingsList.append(QVariant::fromValue(reinterpret_cast<QmlComponentInfo*>(_p->pOfflineMaps)));
+#if defined(QGC_GST_TAISYNC_ENABLED)
+        _p->pTaisync = new QmlComponentInfo(tr("Taisync"),
+            QUrl::fromUserInput("qrc:/qml/TaisyncSettings.qml"),
+            QUrl::fromUserInput(""));
+        _p->settingsList.append(QVariant::fromValue(reinterpret_cast<QmlComponentInfo*>(_p->pTaisync)));
+#endif
 #if defined(QGC_AIRMAP_ENABLED)
         _p->pAirmap = new QmlComponentInfo(tr("AirMap"),
             QUrl::fromUserInput("qrc:/qml/AirmapSettings.qml"),
@@ -329,3 +328,17 @@ QString QGCCorePlugin::stableVersionCheckFileUrl(void) const
     return QString("https://s3-us-west-2.amazonaws.com/qgroundcontrol/latest/QGC.version.txt");
 #endif
 }
+
+#if !defined(__mobile__)
+QGCQmlWidgetHolder* QGCCorePlugin::createMainQmlWidgetHolder(QLayout *mainLayout, QWidget* parent)
+{
+    QGCQmlWidgetHolder* pMainQmlWidgetHolder = new QGCQmlWidgetHolder(QString(), nullptr, parent);
+    mainLayout->addWidget(pMainQmlWidgetHolder);
+    pMainQmlWidgetHolder->setVisible(true);
+    QQmlEngine::setObjectOwnership(parent, QQmlEngine::CppOwnership);
+    pMainQmlWidgetHolder->setContextPropertyObject("controller", parent);
+    pMainQmlWidgetHolder->setContextPropertyObject("debugMessageModel", AppMessages::getModel());
+    pMainQmlWidgetHolder->setSource(QUrl::fromUserInput("qrc:qml/MainWindowHybrid.qml"));
+    return pMainQmlWidgetHolder;
+}
+#endif

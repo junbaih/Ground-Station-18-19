@@ -56,7 +56,9 @@
 #endif
 
 #ifndef __mobile__
+#ifndef NO_SERIAL_LINK
     Q_DECLARE_METATYPE(QGCSerialPortInfo)
+#endif
 #endif
 
 #ifdef Q_OS_WIN
@@ -92,6 +94,21 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved)
     QSerialPort::setNativeMethods();
 
     return JNI_VERSION_1_6;
+}
+#endif
+
+#ifdef __android__
+#include <QtAndroid>
+bool checkAndroidWritePermission() {
+    QtAndroid::PermissionResult r = QtAndroid::checkPermission("android.permission.WRITE_EXTERNAL_STORAGE");
+    if(r == QtAndroid::PermissionResult::Denied) {
+        QtAndroid::requestPermissionsSync( QStringList() << "android.permission.WRITE_EXTERNAL_STORAGE" );
+        r = QtAndroid::checkPermission("android.permission.WRITE_EXTERNAL_STORAGE");
+        if(r == QtAndroid::PermissionResult::Denied) {
+             return false;
+        }
+   }
+   return true;
 }
 #endif
 
@@ -159,7 +176,9 @@ int main(int argc, char *argv[])
 #endif
     qRegisterMetaType<QAbstractSocket::SocketError>();
 #ifndef __mobile__
+#ifndef NO_SERIAL_LINK
     qRegisterMetaType<QGCSerialPortInfo>();
+#endif
 #endif
 
     // We statically link our own QtLocation plugin
@@ -250,6 +269,10 @@ int main(int argc, char *argv[])
     } else
 #endif
     {
+
+#ifdef __android__
+        checkAndroidWritePermission();
+#endif
         if (!app->_initForNormalAppBoot()) {
             return -1;
         }

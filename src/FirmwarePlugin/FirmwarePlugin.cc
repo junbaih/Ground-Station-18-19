@@ -115,13 +115,6 @@ bool FirmwarePlugin::setFlightMode(const QString& flightMode, uint8_t* base_mode
     return false;
 }
 
-int FirmwarePlugin::manualControlReservedButtonCount(void)
-{
-    // We don't know whether the firmware is going to used any of these buttons.
-    // So reserve them all.
-    return -1;
-}
-
 int FirmwarePlugin::defaultJoystickTXMode(void)
 {
     return 2;
@@ -717,9 +710,7 @@ void FirmwarePlugin::_versionFileDownloadFinished(QString& remoteFile, QString& 
     int currType = vehicle->firmwareVersionType();
 
     // Check if lower version than stable or same version but different type
-    if (vehicle->versionCompare(version) < 0
-       || (vehicle->versionCompare(version) == 0 && currType != FIRMWARE_VERSION_TYPE_OFFICIAL))
-    {
+    if (currType == FIRMWARE_VERSION_TYPE_OFFICIAL && vehicle->versionCompare(version) < 0) {
         const static QString currentVersion = QString("%1.%2.%3").arg(vehicle->firmwareMajorVersion())
                                                                  .arg(vehicle->firmwareMinorVersion())
                                                                  .arg(vehicle->firmwarePatchVersion());
@@ -758,4 +749,9 @@ int FirmwarePlugin::versionCompare(Vehicle* vehicle, QString& compare)
     int minor = versionNumbers[1].toInt();
     int patch = versionNumbers[2].toInt();
     return versionCompare(vehicle, major, minor, patch);
+}
+
+QString FirmwarePlugin::gotoFlightMode(void) const
+{
+    return QString();
 }

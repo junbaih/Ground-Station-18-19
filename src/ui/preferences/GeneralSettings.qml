@@ -37,7 +37,7 @@ QGCView {
     property Fact _userBrandImageIndoor:        QGroundControl.settingsManager.brandImageSettings.userBrandImageIndoor
     property Fact _userBrandImageOutdoor:       QGroundControl.settingsManager.brandImageSettings.userBrandImageOutdoor
     property real _labelWidth:                  ScreenTools.defaultFontPixelWidth * 20
-    property real _comboFieldWidth:             ScreenTools.defaultFontPixelWidth * 25
+    property real _comboFieldWidth:             ScreenTools.defaultFontPixelWidth * 28
     property real _valueFieldWidth:             ScreenTools.defaultFontPixelWidth * 10
     property Fact _mapProvider:                 QGroundControl.settingsManager.flightMapSettings.mapProvider
     property Fact _mapType:                     QGroundControl.settingsManager.flightMapSettings.mapType
@@ -45,7 +45,17 @@ QGCView {
     property real _panelWidth:                  _qgcView.width * _internalWidthRatio
     property real _margins:                     ScreenTools.defaultFontPixelWidth
 
-    readonly property real _internalWidthRatio:          0.8
+    property string _videoSource:               QGroundControl.settingsManager.videoSettings.videoSource.value
+    property bool   _isGst:                     QGroundControl.videoManager.isGStreamer
+    property bool   _isUDP:                     _isGst && _videoSource === QGroundControl.settingsManager.videoSettings.udpVideoSource
+    property bool   _isRTSP:                    _isGst && _videoSource === QGroundControl.settingsManager.videoSettings.rtspVideoSource
+    property bool   _isTCP:                     _isGst && _videoSource === QGroundControl.settingsManager.videoSettings.tcpVideoSource
+    property bool   _isMPEGTS:                  _isGst && _videoSource === QGroundControl.settingsManager.videoSettings.mpegtsVideoSource
+
+    property string gpsDisabled: "Disabled"
+    property string gpsUdpPort:  "UDP Port"
+
+    readonly property real _internalWidthRatio: 0.8
 
     QGCPalette { id: qgcPal }
 
@@ -258,22 +268,6 @@ QGCView {
                                 }
 
                                 FactCheckBox {
-                                    text:       qsTr("Use preflight checklist")
-                                    fact:       _useChecklist
-                                    visible:    _useChecklist.visible
-
-                                    property Fact _useChecklist: QGroundControl.settingsManager.appSettings.useChecklist
-                                }
-
-                                FactCheckBox {
-                                    text:       qsTr("Virtual Joystick")
-                                    visible:    _virtualJoystick.visible
-                                    fact:       _virtualJoystick
-
-                                    property Fact _virtualJoystick: QGroundControl.settingsManager.appSettings.virtualJoystick
-                                }
-
-                                FactCheckBox {
                                     text:       qsTr("AutoLoad Missions")
                                     fact:       _autoLoad
                                     visible:    _autoLoad.visible
@@ -327,17 +321,6 @@ QGCView {
                                         enabled:                announcePercentCheckbox.checked
                                     }
                                 }
-
-                                RowLayout {
-                                    spacing:    ScreenTools.defaultFontPixelWidth
-                                    visible:    QGroundControl.settingsManager.appSettings.defaultMissionItemAltitude.visible
-
-                                    QGCLabel { text: qsTr("Default Mission Altitude") }
-                                    FactTextField {
-                                        Layout.preferredWidth:  _valueFieldWidth
-                                        fact:                   QGroundControl.settingsManager.appSettings.defaultMissionItemAltitude
-                                    }
-                                }
                             }
                         }
 
@@ -370,6 +353,211 @@ QGCView {
                                     selectFolder:   true
 
                                     onAcceptedForLoad: _savePath.rawValue = file
+                                }
+                            }
+                        }
+                    }
+
+                    Item { width: 1; height: _margins }
+
+                    QGCLabel {
+                        id:         flyViewSectionLabel
+                        text:       qsTr("Fly View")
+                        visible:    QGroundControl.settingsManager.flyViewSettings.visible
+                    }
+                    Rectangle {
+                        Layout.preferredHeight: flyViewCol.height + (_margins * 2)
+                        Layout.preferredWidth:  flyViewCol.width + (_margins * 2)
+                        color:                  qgcPal.windowShade
+                        visible:                flyViewSectionLabel.visible
+                        Layout.fillWidth:       true
+
+                        ColumnLayout {
+                            id:                         flyViewCol
+                            anchors.margins:            _margins
+                            anchors.top:                parent.top
+                            anchors.horizontalCenter:   parent.horizontalCenter
+                            spacing:                    _margins
+
+                            FactCheckBox {
+                                text:       qsTr("Use preflight checklist")
+                                fact:       _useChecklist
+                                visible:    _useChecklist.visible
+
+                                property Fact _useChecklist: QGroundControl.settingsManager.appSettings.useChecklist
+                            }
+
+                            FactCheckBox {
+                                text:       qsTr("Virtual Joystick")
+                                visible:    _virtualJoystick.visible
+                                fact:       _virtualJoystick
+
+                                property Fact _virtualJoystick: QGroundControl.settingsManager.appSettings.virtualJoystick
+                            }
+
+                            GridLayout {
+                                columns: 2
+
+                                QGCLabel { text: qsTr("Guided Minimum Altitude") }
+                                FactTextField {
+                                    Layout.preferredWidth:  _valueFieldWidth
+                                    fact:                   QGroundControl.settingsManager.flyViewSettings.guidedMinimumAltitude
+                                }
+
+                                QGCLabel { text: qsTr("Guided Maximum Altitude") }
+                                FactTextField {
+                                    Layout.preferredWidth:  _valueFieldWidth
+                                    fact:                   QGroundControl.settingsManager.flyViewSettings.guidedMaximumAltitude
+                                }
+                            }
+                        }
+                    }
+
+                    Item { width: 1; height: _margins }
+
+                    QGCLabel {
+                        id:         planViewSectionLabel
+                        text:       qsTr("Plan View")
+                        visible:    QGroundControl.settingsManager.planViewSettings.visible
+                    }
+                    Rectangle {
+                        Layout.preferredHeight: planViewCol.height + (_margins * 2)
+                        Layout.preferredWidth:  planViewCol.width + (_margins * 2)
+                        color:                  qgcPal.windowShade
+                        visible:                planViewSectionLabel.visible
+                        Layout.fillWidth:       true
+
+                        ColumnLayout {
+                            id:                         planViewCol
+                            anchors.margins:            _margins
+                            anchors.top:                parent.top
+                            anchors.horizontalCenter:   parent.horizontalCenter
+                            spacing:                    _margins
+
+                            RowLayout {
+                                spacing:    ScreenTools.defaultFontPixelWidth
+                                visible:    QGroundControl.settingsManager.appSettings.defaultMissionItemAltitude.visible
+
+                                QGCLabel { text: qsTr("Default Mission Altitude") }
+                                FactTextField {
+                                    Layout.preferredWidth:  _valueFieldWidth
+                                    fact:                   QGroundControl.settingsManager.appSettings.defaultMissionItemAltitude
+                                }
+                            }
+                        }
+                    }
+
+                    Item { width: 1; height: _margins }
+
+                    QGCLabel {
+                        id:         autoConnectSectionLabel
+                        text:       qsTr("AutoConnect to the following devices")
+                        visible:    QGroundControl.settingsManager.autoConnectSettings.visible
+                    }
+                    Rectangle {
+                        Layout.preferredWidth:  autoConnectCol.width + (_margins * 2)
+                        Layout.preferredHeight: autoConnectCol.height + (_margins * 2)
+                        color:                  qgcPal.windowShade
+                        visible:                autoConnectSectionLabel.visible
+                        Layout.fillWidth:       true
+
+                        ColumnLayout {
+                            id:                 autoConnectCol
+                            anchors.margins:    _margins
+                            anchors.left:       parent.left
+                            anchors.top:        parent.top
+                            spacing:            _margins
+
+                            RowLayout {
+                                spacing: _margins
+
+                                Repeater {
+                                    id:     autoConnectRepeater
+                                    model:  [ QGroundControl.settingsManager.autoConnectSettings.autoConnectPixhawk,
+                                        QGroundControl.settingsManager.autoConnectSettings.autoConnectSiKRadio,
+                                        QGroundControl.settingsManager.autoConnectSettings.autoConnectPX4Flow,
+                                        QGroundControl.settingsManager.autoConnectSettings.autoConnectLibrePilot,
+                                        QGroundControl.settingsManager.autoConnectSettings.autoConnectUDP,
+                                        QGroundControl.settingsManager.autoConnectSettings.autoConnectRTKGPS
+                                    ]
+
+                                    property var names: [ qsTr("Pixhawk"), qsTr("SiK Radio"), qsTr("PX4 Flow"), qsTr("LibrePilot"), qsTr("UDP"), qsTr("RTK GPS") ]
+
+                                    FactCheckBox {
+                                        text:       autoConnectRepeater.names[index]
+                                        fact:       modelData
+                                        visible:    modelData.visible
+                                    }
+                                }
+                            }
+
+                            GridLayout {
+                                Layout.fillWidth:   false
+                                Layout.alignment:   Qt.AlignHCenter
+                                columns:            2
+                                visible:            !ScreenTools.isMobile
+                                                    && QGroundControl.settingsManager.autoConnectSettings.autoConnectNmeaPort.visible
+                                                    && QGroundControl.settingsManager.autoConnectSettings.autoConnectNmeaBaud.visible
+
+                                QGCLabel {
+                                    text: qsTr("NMEA GPS Device")
+                                }
+                                QGCComboBox {
+                                    id:                     nmeaPortCombo
+                                    Layout.preferredWidth:  _comboFieldWidth
+
+                                    model:  ListModel {
+                                    }
+
+                                    onActivated: {
+                                        if (index != -1) {
+                                            QGroundControl.settingsManager.autoConnectSettings.autoConnectNmeaPort.value = textAt(index);
+                                        }
+                                    }
+                                    Component.onCompleted: {
+                                        model.append({text: gpsDisabled})
+                                        model.append({text: gpsUdpPort})
+
+                                        for (var i in QGroundControl.linkManager.serialPorts) {
+                                            nmeaPortCombo.model.append({text:QGroundControl.linkManager.serialPorts[i]})
+                                        }
+                                        var index = nmeaPortCombo.find(QGroundControl.settingsManager.autoConnectSettings.autoConnectNmeaPort.valueString);
+                                        nmeaPortCombo.currentIndex = index;
+                                        if (QGroundControl.linkManager.serialPorts.length === 0) {
+                                            nmeaPortCombo.model.append({text: "Serial <none available>"})
+                                        }
+                                    }
+                                }
+
+                                QGCLabel {
+                                    visible:          nmeaPortCombo.currentText !== gpsUdpPort && nmeaPortCombo.currentText !== gpsDisabled
+                                    text:             qsTr("NMEA GPS Baudrate")
+                                }
+                                QGCComboBox {
+                                    visible:                nmeaPortCombo.currentText !== gpsUdpPort && nmeaPortCombo.currentText !== gpsDisabled
+                                    id:                     nmeaBaudCombo
+                                    Layout.preferredWidth:  _comboFieldWidth
+                                    model:                  [4800, 9600, 19200, 38400, 57600, 115200]
+
+                                    onActivated: {
+                                        if (index != -1) {
+                                            QGroundControl.settingsManager.autoConnectSettings.autoConnectNmeaBaud.value = textAt(index);
+                                        }
+                                    }
+                                    Component.onCompleted: {
+                                        var index = nmeaBaudCombo.find(QGroundControl.settingsManager.autoConnectSettings.autoConnectNmeaBaud.valueString);
+                                        nmeaBaudCombo.currentIndex = index;
+                                    }
+                                }
+
+                                QGCLabel {
+                                    text:       qsTr("NMEA stream UDP port")
+                                    visible:    nmeaPortCombo.currentText === gpsUdpPort
+                                }
+                                FactTextField {
+                                    visible:                nmeaPortCombo.currentText === gpsUdpPort
+                                    Layout.preferredWidth:  _valueFieldWidth
+                                    fact:                   QGroundControl.settingsManager.autoConnectSettings.nmeaUdpPort
                                 }
                             }
                         }
@@ -520,108 +708,9 @@ QGCView {
                     Item { width: 1; height: _margins }
 
                     QGCLabel {
-                        id:         autoConnectSectionLabel
-                        text:       qsTr("AutoConnect to the following devices")
-                        visible:    QGroundControl.settingsManager.autoConnectSettings.visible
-                    }
-                    Rectangle {
-                        Layout.preferredWidth:  autoConnectCol.width + (_margins * 2)
-                        Layout.preferredHeight: autoConnectCol.height + (_margins * 2)
-                        color:                  qgcPal.windowShade
-                        visible:                autoConnectSectionLabel.visible
-                        Layout.fillWidth:       true
-
-                        ColumnLayout {
-                            id:                 autoConnectCol
-                            anchors.margins:    _margins
-                            anchors.left:       parent.left
-                            anchors.top:        parent.top
-                            spacing:            _margins
-
-                            RowLayout {
-                                spacing: _margins
-
-                                Repeater {
-                                    id:     autoConnectRepeater
-                                    model:  [ QGroundControl.settingsManager.autoConnectSettings.autoConnectPixhawk,
-                                        QGroundControl.settingsManager.autoConnectSettings.autoConnectSiKRadio,
-                                        QGroundControl.settingsManager.autoConnectSettings.autoConnectPX4Flow,
-                                        QGroundControl.settingsManager.autoConnectSettings.autoConnectLibrePilot,
-                                        QGroundControl.settingsManager.autoConnectSettings.autoConnectUDP,
-                                        QGroundControl.settingsManager.autoConnectSettings.autoConnectRTKGPS
-                                    ]
-
-                                    property var names: [ qsTr("Pixhawk"), qsTr("SiK Radio"), qsTr("PX4 Flow"), qsTr("LibrePilot"), qsTr("UDP"), qsTr("RTK GPS") ]
-
-                                    FactCheckBox {
-                                        text:       autoConnectRepeater.names[index]
-                                        fact:       modelData
-                                        visible:    modelData.visible
-                                    }
-                                }
-                            }
-
-                            GridLayout {
-                                Layout.fillWidth:   false
-                                Layout.alignment:   Qt.AlignHCenter
-                                columns:            2
-                                visible:            !ScreenTools.isMobile
-                                                    && QGroundControl.settingsManager.autoConnectSettings.autoConnectNmeaPort.visible
-                                                    && QGroundControl.settingsManager.autoConnectSettings.autoConnectNmeaBaud.visible
-
-                                QGCLabel {
-                                    text: qsTr("NMEA GPS Device")
-                                }
-                                QGCComboBox {
-                                    id:                     nmeaPortCombo
-                                    Layout.preferredWidth:  _comboFieldWidth
-
-                                    model:  ListModel {
-                                        ListElement { text: "disabled" }
-                                    }
-
-                                    onActivated: {
-                                        if (index != -1) {
-                                            QGroundControl.settingsManager.autoConnectSettings.autoConnectNmeaPort.value = textAt(index);
-                                        }
-                                    }
-                                    Component.onCompleted: {
-                                        for (var i in QGroundControl.linkManager.serialPorts) {
-                                            nmeaPortCombo.model.append({text:QGroundControl.linkManager.serialPorts[i]})
-                                        }
-                                        var index = nmeaPortCombo.find(QGroundControl.settingsManager.autoConnectSettings.autoConnectNmeaPort.valueString);
-                                        nmeaPortCombo.currentIndex = index;
-                                    }
-                                }
-
-                                QGCLabel {
-                                    text:             qsTr("NMEA GPS Baudrate")
-                                }
-                                QGCComboBox {
-                                    id:                     nmeaBaudCombo
-                                    Layout.preferredWidth:  _comboFieldWidth
-                                    model:                  [4800, 9600, 19200, 38400, 57600, 115200]
-
-                                    onActivated: {
-                                        if (index != -1) {
-                                            QGroundControl.settingsManager.autoConnectSettings.autoConnectNmeaBaud.value = textAt(index);
-                                        }
-                                    }
-                                    Component.onCompleted: {
-                                        var index = nmeaBaudCombo.find(QGroundControl.settingsManager.autoConnectSettings.autoConnectNmeaBaud.valueString);
-                                        nmeaBaudCombo.currentIndex = index;
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    Item { width: 1; height: _margins }
-
-                    QGCLabel {
                         id:         videoSectionLabel
                         text:       qsTr("Video")
-                        visible:    QGroundControl.settingsManager.videoSettings.visible
+                        visible:    QGroundControl.settingsManager.videoSettings.visible && !QGroundControl.videoManager.autoStreamConfigured
                     }
                     Rectangle {
                         Layout.preferredWidth:  videoGrid.width + (_margins * 2)
@@ -638,10 +727,9 @@ QGCView {
                             Layout.fillWidth:           false
                             Layout.fillHeight:          false
                             columns:                    2
-
                             QGCLabel {
-                                text:       qsTr("Video Source")
-                                visible:    QGroundControl.settingsManager.videoSettings.videoSource.visible
+                                text:                   qsTr("Video Source")
+                                visible:                QGroundControl.settingsManager.videoSettings.videoSource.visible
                             }
                             FactComboBox {
                                 id:                     videoSource
@@ -652,53 +740,52 @@ QGCView {
                             }
 
                             QGCLabel {
-                                text:       qsTr("UDP Port")
-                                visible:    QGroundControl.settingsManager.videoSettings.udpPort.visible && QGroundControl.videoManager.isGStreamer && videoSource.currentIndex === 1
+                                text:                   qsTr("UDP Port")
+                                visible:                (_isUDP || _isMPEGTS)  && QGroundControl.settingsManager.videoSettings.udpPort.visible
                             }
                             FactTextField {
                                 Layout.preferredWidth:  _comboFieldWidth
                                 fact:                   QGroundControl.settingsManager.videoSettings.udpPort
-                                visible:                QGroundControl.settingsManager.videoSettings.udpPort.visible && QGroundControl.videoManager.isGStreamer && videoSource.currentIndex === 1
+                                visible:                (_isUDP || _isMPEGTS) && QGroundControl.settingsManager.videoSettings.udpPort.visible
                             }
 
                             QGCLabel {
-                                text:       qsTr("RTSP URL")
-                                visible:    QGroundControl.settingsManager.videoSettings.rtspUrl.visible && QGroundControl.videoManager.isGStreamer && videoSource.currentIndex === 2
+                                text:                   qsTr("RTSP URL")
+                                visible:                _isRTSP && QGroundControl.settingsManager.videoSettings.rtspUrl.visible
                             }
                             FactTextField {
                                 Layout.preferredWidth:  _comboFieldWidth
                                 fact:                   QGroundControl.settingsManager.videoSettings.rtspUrl
-                                visible:                QGroundControl.settingsManager.videoSettings.rtspUrl.visible && QGroundControl.videoManager.isGStreamer && videoSource.currentIndex === 2
+                                visible:                _isRTSP && QGroundControl.settingsManager.videoSettings.rtspUrl.visible
                             }
 
                             QGCLabel {
-                                text:       qsTr("TCP URL")
-                                visible:    QGroundControl.settingsManager.videoSettings.tcpUrl.visible && QGroundControl.videoManager.isGStreamer && videoSource.currentIndex === 3
+                                text:                   qsTr("TCP URL")
+                                visible:                _isTCP && QGroundControl.settingsManager.videoSettings.tcpUrl.visible
                             }
                             FactTextField {
                                 Layout.preferredWidth:  _comboFieldWidth
                                 fact:                   QGroundControl.settingsManager.videoSettings.tcpUrl
-                                visible:                QGroundControl.settingsManager.videoSettings.tcpUrl.visible && QGroundControl.videoManager.isGStreamer && videoSource.currentIndex === 3
+                                visible:                _isTCP && QGroundControl.settingsManager.videoSettings.tcpUrl.visible
                             }
-
                             QGCLabel {
-                                text:       qsTr("Aspect Ratio")
-                                visible:    QGroundControl.videoManager.isGStreamer && videoSource.currentIndex && videoSource.currentIndex < 3 && QGroundControl.settingsManager.videoSettings.aspectRatio.visible
+                                text:                   qsTr("Aspect Ratio")
+                                visible:                _isGst && QGroundControl.settingsManager.videoSettings.aspectRatio.visible
                             }
                             FactTextField {
                                 Layout.preferredWidth:  _comboFieldWidth
                                 fact:                   QGroundControl.settingsManager.videoSettings.aspectRatio
-                                visible:                QGroundControl.videoManager.isGStreamer && videoSource.currentIndex && videoSource.currentIndex < 3 && QGroundControl.settingsManager.videoSettings.aspectRatio.visible
+                                visible:                _isGst && QGroundControl.settingsManager.videoSettings.aspectRatio.visible
                             }
 
                             QGCLabel {
-                                text:       qsTr("Disable When Disarmed")
-                                visible:    QGroundControl.videoManager.isGStreamer && videoSource.currentIndex && videoSource.currentIndex < 3 && QGroundControl.settingsManager.videoSettings.gridLines.visible
+                                text:                   qsTr("Disable When Disarmed")
+                                visible:                _isGst && QGroundControl.settingsManager.videoSettings.disableWhenDisarmed.visible
                             }
                             FactCheckBox {
-                                text:       ""
-                                fact:       QGroundControl.settingsManager.videoSettings.disableWhenDisarmed
-                                visible:    QGroundControl.videoManager.isGStreamer && videoSource.currentIndex && videoSource.currentIndex < 3 && QGroundControl.settingsManager.videoSettings.gridLines.visible
+                                text:                   ""
+                                fact:                   QGroundControl.settingsManager.videoSettings.disableWhenDisarmed
+                                visible:                _isGst && QGroundControl.settingsManager.videoSettings.disableWhenDisarmed.visible
                             }
                         }
                     }
@@ -706,16 +793,16 @@ QGCView {
                     Item { width: 1; height: _margins }
 
                     QGCLabel {
-                        id:         videoRecSectionLabel
-                        text:       qsTr("Video Recording")
-                        visible:    QGroundControl.settingsManager.videoSettings.visible && QGroundControl.videoManager.isGStreamer && videoSource.currentIndex && videoSource.currentIndex < 4
+                        id:                             videoRecSectionLabel
+                        text:                           qsTr("Video Recording")
+                        visible:                        (QGroundControl.settingsManager.videoSettings.visible && _isGst) || QGroundControl.videoManager.autoStreamConfigured
                     }
                     Rectangle {
-                        Layout.preferredWidth:  videoRecCol.width + (_margins * 2)
-                        Layout.preferredHeight: videoRecCol.height + (_margins * 2)
-                        Layout.fillWidth:       true
-                        color:                  qgcPal.windowShade
-                        visible:                videoRecSectionLabel.visible
+                        Layout.preferredWidth:          videoRecCol.width  + (_margins * 2)
+                        Layout.preferredHeight:         videoRecCol.height + (_margins * 2)
+                        Layout.fillWidth:               true
+                        color:                          qgcPal.windowShade
+                        visible:                        videoRecSectionLabel.visible
 
                         GridLayout {
                             id:                         videoRecCol
@@ -726,18 +813,18 @@ QGCView {
                             columns:                    2
 
                             QGCLabel {
-                                text:       qsTr("Auto-Delete Files")
-                                visible:    QGroundControl.settingsManager.videoSettings.enableStorageLimit.visible
+                                text:                   qsTr("Auto-Delete Files")
+                                visible:                QGroundControl.settingsManager.videoSettings.enableStorageLimit.visible
                             }
                             FactCheckBox {
-                                text:       ""
-                                fact:       QGroundControl.settingsManager.videoSettings.enableStorageLimit
-                                visible:    QGroundControl.settingsManager.videoSettings.enableStorageLimit.visible
+                                text:                   ""
+                                fact:                   QGroundControl.settingsManager.videoSettings.enableStorageLimit
+                                visible:                QGroundControl.settingsManager.videoSettings.enableStorageLimit.visible
                             }
 
                             QGCLabel {
-                                text:       qsTr("Max Storage Usage")
-                                visible:    QGroundControl.settingsManager.videoSettings.maxVideoSize.visible && QGroundControl.settingsManager.videoSettings.enableStorageLimit.value
+                                text:                   qsTr("Max Storage Usage")
+                                visible:                QGroundControl.settingsManager.videoSettings.maxVideoSize.visible && QGroundControl.settingsManager.videoSettings.enableStorageLimit.value
                             }
                             FactTextField {
                                 Layout.preferredWidth:  _comboFieldWidth
@@ -746,8 +833,8 @@ QGCView {
                             }
 
                             QGCLabel {
-                                text:       qsTr("Video File Format")
-                                visible:    QGroundControl.settingsManager.videoSettings.recordingFormat.visible
+                                text:                   qsTr("Video File Format")
+                                visible:                QGroundControl.settingsManager.videoSettings.recordingFormat.visible
                             }
                             FactComboBox {
                                 Layout.preferredWidth:  _comboFieldWidth

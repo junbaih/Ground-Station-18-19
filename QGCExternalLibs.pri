@@ -90,6 +90,13 @@ INCLUDEPATH += libs/eigen
 DEFINES += NOMINMAX
 
 #
+# [REQUIRED] shapelib library
+INCLUDEPATH += libs/shapelib
+SOURCES += \
+    libs/shapelib/shpopen.c \
+    libs/shapelib/safileio.c
+
+#
 # [REQUIRED] QWT plotting library dependency. Provides plotting capabilities.
 #
 !MobileBuild {
@@ -125,6 +132,16 @@ MacBuild {
         -lSDL2
 }
 
+AndroidBuild {
+    contains(QT_ARCH, arm) {
+        ANDROID_EXTRA_LIBS += $$BASEDIR/libs/AndroidOpenSSL/arch-armeabi-v7a/lib/libcrypto.so
+        ANDROID_EXTRA_LIBS += $$BASEDIR/libs/AndroidOpenSSL/arch-armeabi-v7a/lib/libssl.so
+    } else {
+        ANDROID_EXTRA_LIBS += $$BASEDIR/libs/AndroidOpenSSL/arch-x86/lib/libcrypto.so
+        ANDROID_EXTRA_LIBS += $$BASEDIR/libs/AndroidOpenSSL/arch-x86/lib/libssl.so
+    }
+}
+
 #
 # [OPTIONAL] Zeroconf for UDP links
 #
@@ -153,20 +170,22 @@ contains (DEFINES, DISABLE_AIRMAP) {
     message("Skipping support for AirMap (manual override from user_config.pri)")
 } else {
     AIRMAPD_PATH = $$PWD/libs/airmapd
-    MacBuild {
-        exists($${AIRMAPD_PATH}/macOS/Qt.5.11.0) {
-            message("Including support for AirMap for macOS")
-            LIBS += -L$${AIRMAPD_PATH}/macOS/Qt.5.11.0 -lairmap-qt
-            DEFINES += QGC_AIRMAP_ENABLED
+    contains(QT_VERSION, ˆ5\\.11\..*) {
+        MacBuild {
+            exists($${AIRMAPD_PATH}/macOS/Qt.5.11.0) {
+                message("Including support for AirMap for macOS")
+                LIBS += -L$${AIRMAPD_PATH}/macOS/Qt.5.11.0 -lairmap-qt
+                DEFINES += QGC_AIRMAP_ENABLED
+            }
+        } else:LinuxBuild {
+            exists($${AIRMAPD_PATH}/linux/Qt.5.11.0) {
+                message("Including support for AirMap for Linux")
+                LIBS += -L$${AIRMAPD_PATH}/linux/Qt.5.11.0 -lairmap-qt
+                DEFINES += QGC_AIRMAP_ENABLED
+            }
+        } else {
+            message("Skipping support for Airmap (unsupported platform)")
         }
-    } else:LinuxBuild {
-        exists($${AIRMAPD_PATH}/linux/Qt.5.11.0) {
-            message("Including support for AirMap for Linux")
-            LIBS += -L$${AIRMAPD_PATH}/linux/Qt.5.11.0 -lairmap-qt
-            DEFINES += QGC_AIRMAP_ENABLED
-        }
-    } else {
-        message("Skipping support for Airmap (unsupported platform)")
     }
     contains (DEFINES, QGC_AIRMAP_ENABLED) {
         INCLUDEPATH += \

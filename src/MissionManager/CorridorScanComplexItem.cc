@@ -124,9 +124,13 @@ bool CorridorScanComplexItem::load(const QJsonObject& complexObject, int sequenc
 
     _entryPoint = complexObject[_jsonEntryPointKey].toInt();
 
-    _rebuildTransects();
-
     _ignoreRecalc = false;
+
+    _recalcComplexDistance();
+    if (_cameraShots == 0) {
+        // Shot count was possibly not available from plan file
+        _recalcCameraShots();
+    }
 
     return true;
 }
@@ -172,7 +176,7 @@ void CorridorScanComplexItem::_buildAndAppendMissionItems(QList<MissionItem*>& i
 
     //qDebug() << "_buildAndAppendMissionItems";
     for (const QList<TransectStyleComplexItem::CoordInfo_t>& transect: _transects) {
-        bool entryPoint = true;
+        bool transectEntry = true;
 
         //qDebug() << "start transect";
         for (const CoordInfo_t& transectCoordInfo: transect) {
@@ -193,7 +197,7 @@ void CorridorScanComplexItem::_buildAndAppendMissionItems(QList<MissionItem*>& i
                                    missionItemParent);
             items.append(item);
 
-            if (firstOverallPoint && addTriggerAtBeginning) {
+            if (triggerCamera() && firstOverallPoint && addTriggerAtBeginning) {
                 // Start triggering
                 addTriggerAtBeginning = false;
                 item = new MissionItem(seqNum++,
@@ -210,9 +214,12 @@ void CorridorScanComplexItem::_buildAndAppendMissionItems(QList<MissionItem*>& i
             }
             firstOverallPoint = false;
 
-            if (transectCoordInfo.coordType == TransectStyleComplexItem::CoordTypeSurveyEdge && !imagesEverywhere) {
-                if (entryPoint) {
-                    // Start of transect, start triggering
+            // Possibly add trigger start/stop to survey area entrance/exit
+            if (triggerCamera() && transectCoordInfo.coordType == TransectStyleComplexItem::CoordTypeSurveyEdge) {
+                if (transectEntry) {
+                    // Start of transect, always start triggering. We do this even if we are taking images everywhere.
+                    // This allows a restart of the mission in mid-air without losing images from the entire mission.
+                    // At most you may lose part of a transect.
                     item = new MissionItem(seqNum++,
                                            MAV_CMD_DO_SET_CAM_TRIGG_DIST,
                                            MAV_FRAME_MISSION,
@@ -224,7 +231,8 @@ void CorridorScanComplexItem::_buildAndAppendMissionItems(QList<MissionItem*>& i
                                            false,                                                           // isCurrentItem
                                            missionItemParent);
                     items.append(item);
-                } else {
+                    transectEntry = false;
+                } else if (!imagesEverywhere && !transectEntry){
                     // End of transect, stop triggering
                     item = new MissionItem(seqNum++,
                                            MAV_CMD_DO_SET_CAM_TRIGG_DIST,
@@ -238,7 +246,6 @@ void CorridorScanComplexItem::_buildAndAppendMissionItems(QList<MissionItem*>& i
                                            missionItemParent);
                     items.append(item);
                 }
-                entryPoint = !entryPoint;
             }
         }
     }
@@ -458,14 +465,17 @@ void CorridorScanComplexItem::_rebuildTransectsPhase1(void)
     }
 }
 
-void CorridorScanComplexItem::_rebuildTransectsPhase2(void)
+void CorridorScanComplexItem::_recalcComplexDistance(void)
 {
-    // Calculate distance flown for complex item
     _complexDistance = 0;
     for (int i=0; i<_visualTransectPoints.count() - 1; i++) {
         _complexDistance += _visualTransectPoints[i].value<QGeoCoordinate>().distanceTo(_visualTransectPoints[i+1].value<QGeoCoordinate>());
     }
+    emit complexDistanceChanged();
+}
 
+void CorridorScanComplexItem::_recalcCameraShots(void)
+{
     double triggerDistance = _cameraCalc.adjustedFootprintFrontal()->rawValue().toDouble();
     if (triggerDistance == 0) {
         _cameraShots = 0;
@@ -477,14 +487,7 @@ void CorridorScanComplexItem::_rebuildTransectsPhase2(void)
             _cameraShots = singleTransectImageCount * _transectCount();
         }
     }
-
-    _coordinate = _visualTransectPoints.count() ? _visualTransectPoints.first().value<QGeoCoordinate>() : QGeoCoordinate();
-    _exitCoordinate = _visualTransectPoints.count() ? _visualTransectPoints.last().value<QGeoCoordinate>() : QGeoCoordinate();
-
     emit cameraShotsChanged();
-    emit complexDistanceChanged();
-    emit coordinateChanged(_coordinate);
-    emit exitCoordinateChanged(_exitCoordinate);
 }
 
 bool CorridorScanComplexItem::readyForSave(void) const

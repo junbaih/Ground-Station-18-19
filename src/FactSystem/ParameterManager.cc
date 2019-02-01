@@ -26,8 +26,6 @@ QGC_LOGGING_CATEGORY(ParameterManagerVerbose1Log,           "ParameterManagerVer
 QGC_LOGGING_CATEGORY(ParameterManagerVerbose2Log,           "ParameterManagerVerbose2Log")
 QGC_LOGGING_CATEGORY(ParameterManagerDebugCacheFailureLog,  "ParameterManagerDebugCacheFailureLog") // Turn on to debug parameter cache crc misses
 
-Fact ParameterManager::_defaultFact;
-
 const char* ParameterManager::_cachedMetaDataFilePrefix =   "ParameterFactMetaData";
 const char* ParameterManager::_jsonParametersKey =          "parameters";
 const char* ParameterManager::_jsonCompIdKey =              "compId";
@@ -201,7 +199,7 @@ void ParameterManager::_parameterUpdate(int vehicleId, int componentId, QString 
     if (!_waitingReadParamIndexMap[componentId].contains(parameterId) &&
             !_waitingReadParamNameMap[componentId].contains(parameterName) &&
             !_waitingWriteParamNameMap[componentId].contains(parameterName)) {
-        qCDebug(ParameterManagerVerbose1Log) << _logVehiclePrefix() << "Unrequested param update" << parameterName;
+        qCDebug(ParameterManagerVerbose1Log) << _logVehiclePrefix(componentId) << "Unrequested param update" << parameterName;
     }
 
     // Remove this parameter from the waiting lists
@@ -254,14 +252,14 @@ void ParameterManager::_parameterUpdate(int vehicleId, int componentId, QString 
     if (totalWaitingParamCount) {
         // More params to wait for, restart timer
         _waitingParamTimeoutTimer.start();
-        qCDebug(ParameterManagerVerbose1Log) << _logVehiclePrefix() << "Restarting _waitingParamTimeoutTimer: totalWaitingParamCount:" << totalWaitingParamCount;
+        qCDebug(ParameterManagerVerbose1Log) << _logVehiclePrefix(-1) << "Restarting _waitingParamTimeoutTimer: totalWaitingParamCount:" << totalWaitingParamCount;
     } else {
         if (!_mapParameterName2Variant.contains(_vehicle->defaultComponentId())) {
             // Still waiting for parameters from default component
-            qCDebug(ParameterManagerLog) << _logVehiclePrefix() << "Restarting _waitingParamTimeoutTimer (still waiting for default component params)";
+            qCDebug(ParameterManagerLog) << _logVehiclePrefix(-1) << "Restarting _waitingParamTimeoutTimer (still waiting for default component params)";
             _waitingParamTimeoutTimer.start();
         } else {
-            qCDebug(ParameterManagerVerbose1Log) << _logVehiclePrefix() << "Not restarting _waitingParamTimeoutTimer (all requests satisfied)";
+            qCDebug(ParameterManagerVerbose1Log) << _logVehiclePrefix(-1) << "Not restarting _waitingParamTimeoutTimer (all requests satisfied)";
         }
     }
 
@@ -351,7 +349,7 @@ void ParameterManager::_parameterUpdate(int vehicleId, int componentId, QString 
             // When we are getting the very last component param index, reset the group maps to update for the
             // new params. By handling this here, we can pick up components which finish up later than the default
             // component param set.
-            _setupCategoryMap();
+            _setupDefaultComponentCategoryMap();
         }
     }
 
@@ -442,7 +440,7 @@ void ParameterManager::refreshAllParameters(uint8_t componentId)
     _vehicle->sendMessageOnLink(_vehicle->priorityLink(), msg);
 
     QString what = (componentId == MAV_COMP_ID_ALL) ? "MAV_COMP_ID_ALL" : QString::number(componentId);
-    qCDebug(ParameterManagerLog) << _logVehiclePrefix() << "Request to refresh all parameters for component ID:" << what;
+    qCDebug(ParameterManagerLog) << _logVehiclePrefix(-1) << "Request to refresh all parameters for component ID:" << what;
 }
 
 /// Translates FactSystem::defaultComponentId to real component id if needed
@@ -451,7 +449,7 @@ int ParameterManager::_actualComponentId(int componentId)
     if (componentId == FactSystem::defaultComponentId) {
         componentId = _vehicle->defaultComponentId();
         if (componentId == FactSystem::defaultComponentId) {
-            qWarning() << _logVehiclePrefix() << "Default component id not set";
+            qWarning() << _logVehiclePrefix(-1) << "Default component id not set";
         }
     }
 
@@ -529,20 +527,20 @@ QStringList ParameterManager::parameterNames(int componentId)
     return names;
 }
 
-void ParameterManager::_setupCategoryMap(void)
+void ParameterManager::_setupDefaultComponentCategoryMap(void)
 {
     // Must be able to handle being called multiple times
-    _categoryMap.clear();
+    _defaultComponentCategoryMap.clear();
 
     for (const QString &name: _mapParameterName2Variant[_vehicle->defaultComponentId()].keys()) {
         Fact* fact = _mapParameterName2Variant[_vehicle->defaultComponentId()][name].value<Fact*>();
-        _categoryMap[fact->category()][fact->group()] += name;
+        _defaultComponentCategoryMap[fact->category()][fact->group()] += name;
     }
 }
 
-const QMap<QString, QMap<QString, QStringList> >& ParameterManager::getCategoryMap(void)
+const QMap<QString, QMap<QString, QStringList> >& ParameterManager::getDefaultComponentCategoryMap(void)
 {
-    return _categoryMap;
+    return _defaultComponentCategoryMap;
 }
 
 /// Requests missing index based parameters from the vehicle.
@@ -566,8 +564,8 @@ bool ParameterManager::_fillIndexBatchQueue(bool waitingParamTimeout)
 
     for(int componentId: _waitingReadParamIndexMap.keys()) {
         if (_waitingReadParamIndexMap[componentId].count()) {
-            qCDebug(ParameterManagerLog) << _logVehiclePrefix() << "_waitingReadParamIndexMap count" << _waitingReadParamIndexMap[componentId].count();
-            qCDebug(ParameterManagerVerbose1Log) << _logVehiclePrefix() << "_waitingReadParamIndexMap" << _waitingReadParamIndexMap[componentId];
+            qCDebug(ParameterManagerLog) << _logVehiclePrefix(componentId) << "_waitingReadParamIndexMap count" << _waitingReadParamIndexMap[componentId].count();
+            qCDebug(ParameterManagerVerbose1Log) << _logVehiclePrefix(componentId) << "_waitingReadParamIndexMap" << _waitingReadParamIndexMap[componentId];
         }
 
         for(int paramIndex: _waitingReadParamIndexMap[componentId].keys()) {
@@ -608,7 +606,7 @@ void ParameterManager::_waitingParamTimeout(void)
     const int maxBatchSize = 10;
     int batchCount = 0;
 
-    qCDebug(ParameterManagerLog) << _logVehiclePrefix() << "_waitingParamTimeout";
+    qCDebug(ParameterManagerLog) << _logVehiclePrefix(-1) << "_waitingParamTimeout";
 
     // Now that we have timed out for possibly the first time we can activate the index batch queue
     _indexBatchQueueActive = true;
@@ -619,7 +617,7 @@ void ParameterManager::_waitingParamTimeout(void)
     if (!paramsRequested && !_waitingForDefaultComponent && !_mapParameterName2Variant.contains(_vehicle->defaultComponentId())) {
         // Initial load is complete but we still don't have any default component params. Wait one more cycle to see if the
         // any show up.
-        qCDebug(ParameterManagerLog) << _logVehiclePrefix() << "Restarting _waitingParamTimeoutTimer - still don't have default component params" << _vehicle->defaultComponentId() << _mapParameterName2Variant.keys();
+        qCDebug(ParameterManagerLog) << _logVehiclePrefix(-1) << "Restarting _waitingParamTimeoutTimer - still don't have default component params" << _vehicle->defaultComponentId() << _mapParameterName2Variant.keys();
         _waitingParamTimeoutTimer.start();
         _waitingForDefaultComponent = true;
         return;
@@ -674,7 +672,7 @@ void ParameterManager::_waitingParamTimeout(void)
 
 Out:
     if (paramsRequested) {
-        qCDebug(ParameterManagerLog) << _logVehiclePrefix() << "Restarting _waitingParamTimeoutTimer - re-request";
+        qCDebug(ParameterManagerLog) << _logVehiclePrefix(-1) << "Restarting _waitingParamTimeoutTimer - re-request";
         _waitingParamTimeoutTimer.start();
     }
 }
@@ -1123,7 +1121,7 @@ void ParameterManager::_checkInitialLoadComplete(void)
     }
     _debugCacheCRC.clear();
 
-    qCDebug(ParameterManagerLog) << _logVehiclePrefix() << "Initial load complete";
+    qCDebug(ParameterManagerLog) << _logVehiclePrefix(-1) << "Initial load complete";
 
     // Check for index based load failures
     QString indexList;
@@ -1133,7 +1131,7 @@ void ParameterManager::_checkInitialLoadComplete(void)
             if (initialLoadFailures) {
                 indexList += ", ";
             }
-            indexList += QString("%1").arg(paramIndex);
+            indexList += QString("%1:%2").arg(componentId).arg(paramIndex);
             initialLoadFailures = true;
             qCDebug(ParameterManagerLog) << _logVehiclePrefix(componentId) << "Gave up on initial load after max retries (paramIndex:" << paramIndex << ")";
         }
@@ -1149,7 +1147,7 @@ void ParameterManager::_checkInitialLoadComplete(void)
         qCDebug(ParameterManagerLog) << errorMsg;
         qgcApp()->showMessage(errorMsg);
         if (!qgcApp()->runningUnitTests()) {
-            qCWarning(ParameterManagerLog) << _logVehiclePrefix() << "The following parameter indices could not be loaded after the maximum number of retries: " << indexList;
+            qCWarning(ParameterManagerLog) << _logVehiclePrefix(-1) << "The following parameter indices could not be loaded after the maximum number of retries: " << indexList;
         }
     }
 
@@ -1163,7 +1161,7 @@ void ParameterManager::_checkInitialLoadComplete(void)
 void ParameterManager::_initialRequestTimeout(void)
 {
     if (!_disableAllRetries && ++_initialRequestRetryCount <= _maxInitialRequestListRetry) {
-        qCDebug(ParameterManagerLog) << _logVehiclePrefix() << "Retrying initial parameter request list";
+        qCDebug(ParameterManagerLog) << _logVehiclePrefix(-1) << "Retrying initial parameter request list";
         refreshAllParameters();
         _initialRequestTimeoutTimer.start();
     } else {
@@ -1433,7 +1431,7 @@ void ParameterManager::_loadOfflineEditingParams(void)
     }
 
     _addMetaDataToDefaultComponent();
-    _setupCategoryMap();
+    _setupDefaultComponentCategoryMap();
     _parametersReady = true;
     _initialLoadComplete = true;
     _debugCacheCRC.clear();
@@ -1566,4 +1564,9 @@ void ParameterManager::_setLoadProgress(double loadProgress)
 {
     _loadProgress = loadProgress;
     emit loadProgressChanged(loadProgress);
+}
+
+QList<int> ParameterManager::componentIds(void)
+{
+    return _paramCountMap.keys();
 }

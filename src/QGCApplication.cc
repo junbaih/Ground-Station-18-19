@@ -87,8 +87,9 @@
 #include "VisualMissionItem.h"
 #include "EditPositionDialogController.h"
 #include "FactValueSliderListModel.h"
-#include "KMLFileHelper.h"
+#include "ShapeFileHelper.h"
 #include "QGCFileDownload.h"
+#include "FirmwareImage.h"
 
 #ifndef NO_SERIAL_LINK
 #include "SerialLink.h"
@@ -145,9 +146,9 @@ static QObject* qgroundcontrolQmlGlobalSingletonFactory(QQmlEngine*, QJSEngine*)
     return qmlGlobal;
 }
 
-static QObject* kmlFileHelperSingletonFactory(QQmlEngine*, QJSEngine*)
+static QObject* shapeFileHelperSingletonFactory(QQmlEngine*, QJSEngine*)
 {
-    return new KMLFileHelper;
+    return new ShapeFileHelper;
 }
 
 QGCApplication::QGCApplication(int &argc, char* argv[], bool unitTesting)
@@ -237,11 +238,13 @@ QGCApplication::QGCApplication(int &argc, char* argv[], bool unitTesting)
     // Parse command line options
 
     bool fClearSettingsOptions = false; // Clear stored settings
+    bool fClearCache = false;           // Clear parameter/airframe caches
     bool logging = false;               // Turn on logging
     QString loggingOptions;
 
     CmdLineOpt_t rgCmdLineOptions[] = {
         { "--clear-settings",   &fClearSettingsOptions, nullptr },
+        { "--clear-cache",      &fClearCache,           nullptr },
         { "--logging",          &logging,               &loggingOptions },
         { "--fake-mobile",      &_fakeMobile,           nullptr },
         { "--log-output",       &_logOutput,            nullptr },
@@ -310,6 +313,15 @@ QGCApplication::QGCApplication(int &argc, char* argv[], bool unitTesting)
     }
     settings.setValue(_settingsVersionKey, QGC_SETTINGS_VERSION);
 
+    if (fClearCache) {
+        QDir dir(ParameterManager::parameterCacheDir());
+        dir.removeRecursively();
+        QFile airframe(cachedAirframeMetaDataFile());
+        airframe.remove();
+        QFile parameter(cachedParameterMetaDataFile());
+        parameter.remove();
+    }
+
     // Set up our logging filters
     QGCLoggingCategoryRegister::instance()->setFilterRulesFromSettings(loggingOptions);
 
@@ -322,20 +334,28 @@ QGCApplication::QGCApplication(int &argc, char* argv[], bool unitTesting)
     }
 #endif
 
-    // gstreamer debug settings
+    // Gstreamer debug settings
+#if defined(__ios__) || defined(__android__)
+    // Initialize Video Streaming
+    initializeVideoStreaming(argc, argv, nullptr, nullptr);
+#else
     QString savePath, gstDebugLevel;
     if (settings.contains(AppSettings::savePathName)) {
-         savePath = settings.value("SavePath").toString() + "/Logs/gst"; // hardcode log path here, appsetting is not available yet
-         if (!QDir(savePath).exists()) {
-             QDir().mkdir(savePath);
-         }
+        savePath = settings.value(AppSettings::savePathName).toString();
     }
-    if (settings.contains(AppSettings::gstDebugName)) {
-        gstDebugLevel = "*:" + settings.value("GstreamerDebugLevel").toString();
+    if(savePath.isEmpty()) {
+        savePath = "/tmp";
     }
-
+    savePath = savePath + "/Logs/gst";
+    if (!QDir(savePath).exists()) {
+        QDir().mkpath(savePath);
+    }
+    if (settings.contains(AppSettings::gstDebugLevelName)) {
+        gstDebugLevel = "*:" + settings.value(AppSettings::gstDebugLevelName).toString();
+    }
     // Initialize Video Streaming
     initializeVideoStreaming(argc, argv, savePath.toUtf8().data(), gstDebugLevel.toUtf8().data());
+#endif
 
     _toolbox = new QGCToolbox(this);
     _toolbox->setChildToolboxes();
@@ -395,6 +415,7 @@ void QGCApplication::_initCommon(void)
     qmlRegisterUncreatableType<ParameterManager>    (kQGCVehicle,                           1, 0, "ParameterManager",           kRefOnly);
     qmlRegisterUncreatableType<QGCCameraManager>    (kQGCVehicle,                           1, 0, "QGCCameraManager",           kRefOnly);
     qmlRegisterUncreatableType<QGCCameraControl>    (kQGCVehicle,                           1, 0, "QGCCameraControl",           kRefOnly);
+    qmlRegisterUncreatableType<QGCVideoStreamInfo>  (kQGCVehicle,                           1, 0, "QGCVideoStreamInfo",         kRefOnly);
     qmlRegisterUncreatableType<LinkInterface>       (kQGCVehicle,                           1, 0, "LinkInterface",              kRefOnly);
     qmlRegisterUncreatableType<MissionController>   (kQGCControllers,                       1, 0, "MissionController",          kRefOnly);
     qmlRegisterUncreatableType<GeoFenceController>  (kQGCControllers,                       1, 0, "GeoFenceController",         kRefOnly);
@@ -433,7 +454,9 @@ void QGCApplication::_initCommon(void)
 #ifndef __mobile__
     qmlRegisterType<ViewWidgetController>           (kQGCControllers,                       1, 0, "ViewWidgetController");
     qmlRegisterType<CustomCommandWidgetController>  (kQGCControllers,                       1, 0, "CustomCommandWidgetController");
+#ifndef NO_SERIAL_LINK
     qmlRegisterType<FirmwareUpgradeController>      (kQGCControllers,                       1, 0, "FirmwareUpgradeController");
+#endif
     qmlRegisterType<GeoTagController>               (kQGCControllers,                       1, 0, "GeoTagController");
     qmlRegisterType<MavlinkConsoleController>       (kQGCControllers,                       1, 0, "MavlinkConsoleController");
 #endif
@@ -441,7 +464,7 @@ void QGCApplication::_initCommon(void)
     // Register Qml Singletons
     qmlRegisterSingletonType<QGroundControlQmlGlobal>   ("QGroundControl",                          1, 0, "QGroundControl",         qgroundcontrolQmlGlobalSingletonFactory);
     qmlRegisterSingletonType<ScreenToolsController>     ("QGroundControl.ScreenToolsController",    1, 0, "ScreenToolsController",  screenToolsControllerSingletonFactory);
-    qmlRegisterSingletonType<KMLFileHelper>             ("QGroundControl.KMLFileHelper",            1, 0, "KMLFileHelper",          kmlFileHelperSingletonFactory);
+    qmlRegisterSingletonType<ShapeFileHelper>           ("QGroundControl.ShapeFileHelper",          1, 0, "ShapeFileHelper",        shapeFileHelperSingletonFactory);
 }
 
 bool QGCApplication::_initForNormalAppBoot(void)
@@ -472,8 +495,8 @@ bool QGCApplication::_initForNormalAppBoot(void)
     toolbox()->joystickManager()->init();
 
     if (_settingsUpgraded) {
-        showMessage(tr("The format for QGroundControl saved settings has been modified. "
-                    "Your saved settings have been reset to defaults."));
+        showMessage(QString(tr("The format for %1 saved settings has been modified. "
+                    "Your saved settings have been reset to defaults.")).arg(applicationName()));
     }
 
     // Connect links with flag AutoconnectLink
@@ -841,3 +864,16 @@ void QGCApplication::_gpsNumSatellites(int numSatellites)
     _gpsRtkFactGroup->numSatellites()->setRawValue(numSatellites);
 }
 
+QString QGCApplication::cachedParameterMetaDataFile(void)
+{
+    QSettings settings;
+    QDir parameterDir = QFileInfo(settings.fileName()).dir();
+    return parameterDir.filePath(QStringLiteral("ParameterFactMetaData.xml"));
+}
+
+QString QGCApplication::cachedAirframeMetaDataFile(void)
+{
+    QSettings settings;
+    QDir airframeDir = QFileInfo(settings.fileName()).dir();
+    return airframeDir.filePath(QStringLiteral("PX4AirframeFactMetaData.xml"));
+}
