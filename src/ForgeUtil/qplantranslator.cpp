@@ -24,7 +24,7 @@ void qPlanTranslator::translate(const QString& missionPath)
     QDir missionAutoLoadDir(planPath);
     // default file name was modified to be UAV_FORGE.plan
     // hongminy
-    QString autoloadFilename = missionAutoLoadDir.absolutePath()+"UAV_FORGE.plan";
+    QString autoloadFilename = missionAutoLoadDir.absolutePath()+"/UAV_FORGE.plan";
     qDebug()<<" plan file in :"<<autoloadFilename<<endl;
     QFile planFile(autoloadFilename);
     if (!planFile.open(QFile::ReadWrite|QFile::Truncate))

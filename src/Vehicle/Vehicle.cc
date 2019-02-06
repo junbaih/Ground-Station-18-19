@@ -40,11 +40,8 @@
 #include "QGCCameraManager.h"
 #include "VideoReceiver.h"
 #include "VideoManager.h"
-<<<<<<< HEAD
 #include "VideoSettings.h"
 
-=======
->>>>>>> parent of 5019626a2... default plan file name "UAV_FORGE.plan"
 #include "PositionManager.h"
 #if defined(QGC_AIRMAP_ENABLED)
 #include "AirspaceVehicleManager.h"
@@ -2600,7 +2597,7 @@ void Vehicle::_startPlanRequest(void)
             QString missionAutoLoadDirPath = _settingsManager->appSettings()->missionSavePath();
             if (!missionAutoLoadDirPath.isEmpty()) {
                 QDir missionAutoLoadDir(missionAutoLoadDirPath);
-                QString autoloadFilename = missionAutoLoadDir.absoluteFilePath(tr("AutoLoad%1.%2").arg(_id).arg(AppSettings::planFileExtension));
+                QString autoloadFilename = missionAutoLoadDir.absoluteFilePath(tr("UAV_FORGE.%1").arg(AppSettings::planFileExtension));
                 if (QFile(autoloadFilename).exists()) {
                     _initialPlanRequestComplete = true; // We aren't going to load from the vehicle, so we are done
                     PlanMasterController::sendPlanToVehicle(this, autoloadFilename);
