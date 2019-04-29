@@ -1,5 +1,6 @@
 #include "interop.h"
 
+//QString ENDPOINT = "http://192.168.1.130:8000";
 QString ENDPOINT = "http://localhost:8000";
 
 Interop::Interop(const std::string& username, const std::string& password)
@@ -44,6 +45,13 @@ void Interop::replyFinished(QNetworkReply* reply)
 //        qDebug() << "Response: " << reply->peek(reply->bytesAvailable());
     }
     reply->deleteLater();
+}
+
+void Interop::processAfterPathPlanning()
+{
+    qPlanTranslator translator;
+    translator.translate(QDir::currentPath() + "/../../Ground-Station-18-19/res/FlyMission.json");
+    qDebug()<<"path planning completed,ready to upload";
 }
 
 void Interop::waitForResponse(QNetworkReply* reply) {
@@ -118,10 +126,10 @@ QJsonDocument Interop::getMissions() {
          stream << mission.toJson()<< endl;
          newfile.close();
      }
-    qPlanTranslator translator;
     //translator.setPlanDirectory(QDir::currentPath() +"/../../GroundStation/GS/res/");
-    translator.translate(QDir::currentPath() + "/../../Ground-Station-18-19/res/FlyMission.json");
-
+    QFileSystemWatcher watcher;
+    watcher.addPath(QDir::currentPath() + "/../../Ground-Station-18-19/res/FlyMission.json");
+    connect(&watcher,SIGNAL(fileChanged(const QString)),this,SLOT(processAfterPathPlanning()));
     return mission;
 }
 
@@ -133,7 +141,16 @@ QJsonDocument Interop::getMission(int id) {
 QJsonDocument Interop::getObstacles()
 {
     QNetworkReply* reply = getRequest(ENDPOINT + "/api/obstacles");
-    return QJsonDocument::fromJson(reply->readAll());
+    QJsonDocument obstacleDoc =  QJsonDocument::fromJson(reply->readAll());
+    QFile newfile(QDir::currentPath() + "/../../Ground-Station-18-19/res/Obstacles.json");
+    if ( newfile.open(QIODevice::WriteOnly) )
+     {
+        qDebug()<<"write file open at\n"<<QDir::currentPath() + "/../../Ground-Station-18-19/res/Obstacles.json";
+         QTextStream stream( &newfile );
+         stream << obstacleDoc.toJson()<< endl;
+         newfile.close();
+     }
+    return obstacleDoc;
 }
 
 QNetworkReply* Interop::sendTelemetry(float latitude, float longitude, float altitude_msl, float uas_heading) {

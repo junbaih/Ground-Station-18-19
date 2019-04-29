@@ -23,7 +23,7 @@ Mission::Mission(QJsonObject mission_obj, QJsonObject obs_obj) {
 
     defaultLandingTakeoff();
 
-    generatedPath.waypoints.append(landing.waypoints);
+    generatedPath.waypoints.append(landingSeq.waypoints);
     generatedPath.waypoints.prepend(takeoff);
 }
 
@@ -147,11 +147,29 @@ void Mission::defaultLandingTakeoff() {
 
 
 
-    QList<QVector3D> landingPath({QVector3D(33.77146530151367, -117.69239807128906, 45),
-                                 QVector3D(33.770931243896484, -117.69322204589844, 33),
-                                 QVector3D(33.770896911621094, -117.69420623779297, 20),
-                                 QVector3D(33.770957946777344, -117.69458770751953, 10)});
-    landing.setDefaultLanding(landingPath, QVector2D(33.771156311035156, -117.69544982910156), 15);
+    QList<QVector3D> landingPath({QVector3D(33.77224907660259,
+                                  -117.69405921265067,
+                                  10.0584),
+                                 QVector3D( 33.77201927461541,
+                                  -117.69353070170577,
+                                  8.2296),
+                                 QVector3D(
+                                  33.77162725804573,
+                                  -117.69345752327406,
+                                  7.010400000000001),
+                                 QVector3D(33.771327297765,
+                                  -117.69354832537175,
+                                  6.096),
+                                  QVector3D(33.771121130083785,
+                                  -117.69380000360253,
+                                  5.1816),
+                                  QVector3D(                    33.77098149735608,
+                                  -117.6942923703482,
+                                  3.9624),
+                                  QVector3D(                    33.771004225932295,
+                                  -117.69479738999233,
+                                  2.4384)});
+    landingSeq.setDefaultLanding(landingPath, QVector2D(  33.77118828910296,  -117.6956299717293), 1);
 #endif
 }
 

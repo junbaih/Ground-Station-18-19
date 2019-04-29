@@ -2,6 +2,7 @@
 #define INTEROP_H
 #include <QtNetwork>
 #include <QImage>
+#include <QFileSystemWatcher>
 #include "qplantranslator.h"
 struct HeaderSet {
     QNetworkRequest::KnownHeaders header;
@@ -72,5 +73,6 @@ public:
     void deleteODLCThumbnail(int id);
 public slots:
     void replyFinished(QNetworkReply* reply);
+    void processAfterPathPlanning();
 };
 #endif // INTEROP_H

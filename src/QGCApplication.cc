@@ -507,11 +507,12 @@ bool QGCApplication::_initForNormalAppBoot(void)
                     "Your old map cache sets have been reset."));
     }
 
-    //Junbai setup interop
+    //Forge setup interop, author:junbaih
     try
     {
     _interopClient = new Interop("testuser","testpass");
     _interopClient->getMissions();
+    _interopClient->getObstacles();
     }
     catch(...)
     {
